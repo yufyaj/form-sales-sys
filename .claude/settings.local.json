@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "vibe_kanban"
+  ],
+  "enableAllProjectMcpServers": true
+}
