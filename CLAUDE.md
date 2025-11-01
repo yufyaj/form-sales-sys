@@ -105,3 +105,8 @@ ai-docs/skills/backend.md
 - `feature/{パッケージ名}/issue-{番号}` - 機能追加
 - `fix/{パッケージ名}/issue-{番号}` - バグ修正
 - `refactor/{パッケージ名}/issue-{番号}` - リファクタリング
+
+### ブランチの運用
+
+- mainブランチへマージする際は必ずPRを出してください
+- mainブランチを直接触らないでください
