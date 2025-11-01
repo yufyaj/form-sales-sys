@@ -6,7 +6,7 @@
 """
 from enum import Enum as PyEnum
 
-from sqlalchemy import Enum, String, Text
+from sqlalchemy import Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, SoftDeleteMixin, TimestampMixin
@@ -38,8 +38,12 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # 営業支援会社の場合はNULL、顧客企業の場合は担当する営業支援会社のID
+    # RESTRICT: 親組織が削除される前に、子組織を削除または親組織IDをNULLにする必要がある
     parent_organization_id: Mapped[int | None] = mapped_column(
-        nullable=True, comment="親組織ID（顧客企業の場合、担当する営業支援会社のID）"
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="親組織ID（顧客企業の場合、担当する営業支援会社のID）",
     )
 
     # オプション情報

@@ -54,7 +54,13 @@ def upgrade() -> None:
         ),
         sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(
+            ['parent_organization_id'],
+            ['organizations.id'],
+            ondelete='RESTRICT',
+        ),
     )
+    op.create_index('ix_organizations_parent_id', 'organizations', ['parent_organization_id'])
 
     # usersテーブルの作成
     op.create_table(
