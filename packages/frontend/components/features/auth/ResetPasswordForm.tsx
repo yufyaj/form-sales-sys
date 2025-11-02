@@ -5,14 +5,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { resetPasswordSchema, type ResetPasswordFormData } from '@/lib/validations/auth'
-import { apiClient } from '@/lib/api'
+import { requestPasswordResetAction } from '@/lib/auth/actions'
 import { formatErrorMessage } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
 /**
  * パスワードリセットフォームコンポーネント
- * メールアドレスを入力してリセットリンクを送信
+ * Server Actionsを使用してリセットリンクを送信
  */
 export default function ResetPasswordForm() {
   const [serverError, setServerError] = useState<string>('')
@@ -30,6 +30,7 @@ export default function ResetPasswordForm() {
 
   /**
    * フォーム送信ハンドラー
+   * Server Actionを使用してリセットリクエストを送信
    */
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsLoading(true)
@@ -37,10 +38,16 @@ export default function ResetPasswordForm() {
     setSuccessMessage('')
 
     try {
-      // APIリクエスト
-      const response = await apiClient.requestPasswordReset(data.email)
+      // Server Actionを使用してパスワードリセットリクエスト
+      const result = await requestPasswordResetAction(data)
+
+      if (!result.success) {
+        setServerError(result.error || 'リクエストに失敗しました')
+        return
+      }
+
       setSuccessMessage(
-        response.message || 'パスワードリセットリンクをメールで送信しました。'
+        result.message || 'パスワードリセットリンクをメールで送信しました。'
       )
     } catch (error) {
       setServerError(formatErrorMessage(error))
