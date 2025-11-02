@@ -14,20 +14,7 @@ from testcontainers.postgres import PostgresContainer
 
 from src.infrastructure.persistence.models import Base
 
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """
-    セッションスコープのイベントループ
-
-    非同期テストを実行するためのイベントループを提供します。
-    """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def postgres_container() -> Generator[PostgresContainer, None, None]:
     """
     PostgreSQLコンテナのセットアップ
@@ -38,7 +25,7 @@ def postgres_container() -> Generator[PostgresContainer, None, None]:
         yield postgres
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def engine(postgres_container: PostgresContainer) -> AsyncGenerator[Any, None]:
     """
     テスト用の非同期エンジン
