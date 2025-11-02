@@ -3,14 +3,17 @@
 
 パスワードハッシュ化、JWT認証など、セキュリティ関連の機能を提供します。
 """
-from passlib.context import CryptContext
+from datetime import datetime, timedelta, timezone
 
-# bcryptを使用したパスワードハッシュ化コンテキスト
+import bcrypt
+from jose import JWTError, jwt
+
+from src.app.core.config import get_settings
+
 # bcryptは推奨されるパスワードハッシュアルゴリズムで、以下の特徴があります：
 # - ソルト付き（レインボーテーブル攻撃に強い）
 # - 計算コストが高い（ブルートフォース攻撃に強い）
 # - 時間経過とともにコストを増やせる（将来的な攻撃にも対応可能）
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
@@ -18,7 +21,7 @@ def hash_password(password: str) -> str:
     パスワードをbcryptでハッシュ化します
 
     Args:
-        password: プレーンテキストのパスワード
+        password: プレーンテキストのパスワード（72バイト以下）
 
     Returns:
         str: bcryptでハッシュ化されたパスワード（60文字）
@@ -34,8 +37,17 @@ def hash_password(password: str) -> str:
         - bcryptは自動的にソルトを生成します
         - デフォルトのコストファクターは12ラウンドです
         - ハッシュ化には約0.3秒かかります（ブルートフォース攻撃対策）
+        - bcryptは72バイトまでのパスワードのみサポートします
     """
-    return pwd_context.hash(password)
+    # パスワードをバイト列に変換（UTF-8）
+    password_bytes = password.encode("utf-8")
+
+    # bcryptでハッシュ化（自動的にソルトが生成される）
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+
+    # 文字列として返す
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -61,7 +73,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         - 不正なハッシュ形式の場合はFalseを返します
     """
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        # パスワードとハッシュをバイト列に変換
+        password_bytes = plain_password.encode("utf-8")
+        hashed_bytes = hashed_password.encode("utf-8")
+
+        # bcryptで検証（constant-time comparison）
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
     except Exception:
         # ハッシュ形式が不正な場合や検証エラーの場合
         return False
@@ -88,3 +105,72 @@ def is_password_hash(value: str) -> bool:
         - 長さは60文字です
     """
     return value.startswith("$2b$") and len(value) == 60
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    JWTアクセストークンを生成します
+
+    Args:
+        data: トークンに埋め込むデータ（通常はユーザーIDなど）
+        expires_delta: トークンの有効期限（指定しない場合は設定値を使用）
+
+    Returns:
+        str: JWT形式のアクセストークン
+
+    Example:
+        >>> token = create_access_token({"sub": "user@example.com"})
+        >>> isinstance(token, str)
+        True
+
+    Security Notes:
+        - トークンには機密情報を含めないでください
+        - HS256アルゴリズムを使用（対称鍵方式）
+        - 有効期限を必ず設定します（デフォルト30分）
+    """
+    settings = get_settings()
+    to_encode = data.copy()
+
+    # 有効期限の設定
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+
+    to_encode.update({"exp": expire})
+
+    # JWTトークンの生成
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+
+def decode_access_token(token: str) -> dict | None:
+    """
+    JWTアクセストークンをデコードします
+
+    Args:
+        token: JWT形式のアクセストークン
+
+    Returns:
+        dict | None: デコードされたペイロード、無効な場合はNone
+
+    Example:
+        >>> token = create_access_token({"sub": "user@example.com"})
+        >>> payload = decode_access_token(token)
+        >>> payload["sub"]
+        'user@example.com'
+
+    Security Notes:
+        - 有効期限が切れている場合はNoneを返します
+        - 署名が不正な場合はNoneを返します
+        - タイミング攻撃に対して安全です
+    """
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return payload
+    except JWTError:
+        # トークンが不正または有効期限切れ
+        return None
