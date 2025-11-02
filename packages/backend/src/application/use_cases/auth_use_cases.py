@@ -112,11 +112,13 @@ class LoginUseCase:
             raise InactiveUserError()
 
         # JWTトークンを生成
+        # セキュリティ：最小限の情報のみをトークンに含める
+        # JWTは署名されているが暗号化されていないため、ペイロードは誰でも読める
+        # 必要に応じて、認証が必要なエンドポイントでユーザー情報をDBから取得
         access_token = create_access_token(
             data={
-                "sub": str(user.id),
-                "email": user.email,
-                "organization_id": user.organization_id,
+                "sub": str(user.id),  # ユーザーID（subject）
+                "type": "access",  # トークンタイプの明示
             }
         )
 

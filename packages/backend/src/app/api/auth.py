@@ -3,7 +3,12 @@
 
 ユーザー登録、ログイン、パスワードリセットのAPIを提供します。
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+import asyncio
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.core.database import get_db
@@ -30,6 +35,9 @@ from src.infrastructure.persistence.repositories.user_repository import UserRepo
 
 router = APIRouter(prefix="/auth", tags=["認証"])
 
+# レート制限の設定
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post(
     "/register",
@@ -38,7 +46,9 @@ router = APIRouter(prefix="/auth", tags=["認証"])
     summary="ユーザー登録",
     description="新規ユーザーを登録します。パスワードは自動的にハッシュ化されます。",
 )
+@limiter.limit("5/minute")  # 1分間に5回まで（スパム対策）
 async def register(
+    req: Request,
     request: UserRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
@@ -77,7 +87,9 @@ async def register(
     summary="ログイン",
     description="メールアドレスとパスワードで認証し、JWTトークンを発行します。",
 )
+@limiter.limit("5/minute")  # 1分間に5回まで（ブルートフォース対策）
 async def login(
+    req: Request,
     request: UserLoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
@@ -134,35 +146,44 @@ async def logout() -> None:
     status_code=status.HTTP_204_NO_CONTENT,
     summary="パスワードリセット依頼",
     description="メールアドレスを指定してパスワードリセットを依頼します。",
+    deprecated=True,
 )
+@limiter.limit("3/hour")  # 1時間に3回まで（厳格な制限）
 async def request_password_reset(
+    req: Request,
     request: PasswordResetRequestEmail,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
     パスワードリセット依頼
 
-    メールアドレスを指定してパスワードリセットを依頼します。
-    本来はメール送信などの処理が必要ですが、Phase1では簡易実装とします。
+    ⚠️ Phase2で安全な実装に変更予定
+
+    セキュリティ上の理由により、Phase1では機能を無効化しています。
+    Phase2にて、以下の安全な実装を追加予定：
+    - CSPRNG（暗号学的に安全な乱数生成器）による32バイト以上のトークン生成
+    - トークンのハッシュ化保存
+    - 有効期限管理（1時間）
+    - ワンタイムトークン（使用後は無効化）
+    - タイミング攻撃対策
     """
-    user_repository = UserRepository(db)
+    # タイミング攻撃対策：常に一定の処理時間を確保
+    start_time = time.perf_counter()
 
-    try:
-        user = await user_repository.find_by_email(request.email)
-        if user is None:
-            # セキュリティ上、ユーザーが存在するかどうかを返さない
-            return None
+    # Phase1では機能を無効化（セキュリティ上の理由）
+    # Phase2でトークンベースの安全な実装を追加予定
 
-        # TODO: メール送信処理を実装
-        # - リセットトークンを生成
-        # - トークンをデータベースに保存（有効期限付き）
-        # - リセット用URLをメールで送信
+    # タイミングを均一化するため、最低限の処理時間を確保
+    elapsed = time.perf_counter() - start_time
+    min_time = 0.5  # 最低500ms
+    if elapsed < min_time:
+        await asyncio.sleep(min_time - elapsed)
 
-        return None
-
-    except Exception:
-        # セキュリティ上、エラー情報を返さない
-        return None
+    # 常に同じレスポンスを返す（ユーザー存在の有無を漏らさない）
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset feature will be implemented in Phase 2 with secure token-based mechanism",
+    )
 
 
 @router.post(
@@ -170,6 +191,7 @@ async def request_password_reset(
     response_model=UserResponse,
     summary="パスワードリセット",
     description="リセットトークンを使用してパスワードをリセットします。",
+    deprecated=True,
 )
 async def reset_password(
     request: PasswordResetRequest,
@@ -178,26 +200,16 @@ async def reset_password(
     """
     パスワードリセット
 
-    リセットトークンを使用してパスワードをリセットします。
-    Phase1では簡易実装として、トークン=ユーザーIDとします。
+    ⚠️ Phase2で安全な実装に変更予定
+
+    セキュリティ上の理由により、Phase1では機能を無効化しています。
+    Phase2にて、以下の安全な実装を追加予定：
+    - トークンのハッシュ化検証
+    - 有効期限チェック
+    - ワンタイムトークンの無効化
+    - レート制限
     """
-    user_repository = UserRepository(db)
-    use_case = ResetPasswordUseCase(user_repository)
-
-    try:
-        # Phase1: トークン=ユーザーIDとして簡易実装
-        # 本来はトークンの検証とユーザーIDの取得が必要
-        user_id = int(request.token)
-
-        user = await use_case.execute(
-            user_id=user_id,
-            new_password=request.new_password,
-        )
-
-        return UserResponse.model_validate(user)
-
-    except (UserNotFoundError, ValueError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invalid or expired reset token",
-        )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset feature will be implemented in Phase 2 with secure token-based mechanism",
+    )
