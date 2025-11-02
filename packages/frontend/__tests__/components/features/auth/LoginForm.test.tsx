@@ -1,20 +1,19 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import LoginForm from '@/components/features/auth/LoginForm'
-import { apiClient } from '@/lib/api'
+import * as authActions from '@/lib/auth/actions'
 
 // Next.jsのルーターをモック
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
+    refresh: jest.fn(),
   }),
 }))
 
-// APIクライアントをモック
-jest.mock('@/lib/api', () => ({
-  apiClient: {
-    login: jest.fn(),
-  },
+// Server Actionsをモック
+jest.mock('@/lib/auth/actions', () => ({
+  loginAction: jest.fn(),
 }))
 
 describe('LoginForm', () => {
@@ -91,18 +90,20 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/パスワードは8文字以上で入力してください/i)
+        screen.getByText(/パスワードは12文字以上で入力してください/i)
       ).toBeInTheDocument()
     })
   })
 
   it('正しい入力でログインが成功する', async () => {
     const user = userEvent.setup()
-    const mockLogin = apiClient.login as jest.Mock
+    const mockLoginAction = authActions.loginAction as jest.Mock
 
-    mockLogin.mockResolvedValue({
-      user: { id: '1', email: 'test@example.com' },
-      token: 'mock-token',
+    mockLoginAction.mockResolvedValue({
+      success: true,
+      data: {
+        user: { id: '1', email: 'test@example.com' },
+      },
     })
 
     render(<LoginForm />)
@@ -112,22 +113,25 @@ describe('LoginForm', () => {
     const submitButton = screen.getByRole('button', { name: /ログイン/i })
 
     await user.type(emailInput, 'test@example.com')
-    await user.type(passwordInput, 'password123')
+    await user.type(passwordInput, 'ValidPassword123')
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith({
+      expect(mockLoginAction).toHaveBeenCalledWith({
         email: 'test@example.com',
-        password: 'password123',
+        password: 'ValidPassword123',
       })
     })
   })
 
   it('ログイン失敗時にエラーメッセージが表示される', async () => {
     const user = userEvent.setup()
-    const mockLogin = apiClient.login as jest.Mock
+    const mockLoginAction = authActions.loginAction as jest.Mock
 
-    mockLogin.mockRejectedValue(new Error('認証に失敗しました'))
+    mockLoginAction.mockResolvedValue({
+      success: false,
+      error: '認証に失敗しました',
+    })
 
     render(<LoginForm />)
 
@@ -136,7 +140,7 @@ describe('LoginForm', () => {
     const submitButton = screen.getByRole('button', { name: /ログイン/i })
 
     await user.type(emailInput, 'test@example.com')
-    await user.type(passwordInput, 'wrongpassword')
+    await user.type(passwordInput, 'WrongPassword123')
     await user.click(submitButton)
 
     await waitFor(() => {
@@ -146,17 +150,19 @@ describe('LoginForm', () => {
 
   it('送信中はボタンが無効化される', async () => {
     const user = userEvent.setup()
-    const mockLogin = apiClient.login as jest.Mock
+    const mockLoginAction = authActions.loginAction as jest.Mock
 
     // APIレスポンスを遅延させる
-    mockLogin.mockImplementation(
+    mockLoginAction.mockImplementation(
       () =>
         new Promise((resolve) =>
           setTimeout(
             () =>
               resolve({
-                user: { id: '1', email: 'test@example.com' },
-                token: 'mock-token',
+                success: true,
+                data: {
+                  user: { id: '1', email: 'test@example.com' },
+                },
               }),
             1000
           )
@@ -170,10 +176,58 @@ describe('LoginForm', () => {
     const submitButton = screen.getByRole('button', { name: /ログイン/i })
 
     await user.type(emailInput, 'test@example.com')
-    await user.type(passwordInput, 'password123')
+    await user.type(passwordInput, 'ValidPassword123')
     await user.click(submitButton)
 
     // ボタンが無効化されることを確認
-    expect(submitButton).toBeDisabled()
+    await waitFor(() => {
+      expect(submitButton).toBeDisabled()
+    })
+  })
+
+  it('レート制限が機能する', async () => {
+    const user = userEvent.setup()
+    const mockLoginAction = authActions.loginAction as jest.Mock
+
+    // 5回連続失敗させる
+    mockLoginAction.mockResolvedValue({
+      success: false,
+      error: '認証に失敗しました',
+    })
+
+    render(<LoginForm />)
+
+    const emailInput = screen.getByLabelText(/メールアドレス/i)
+    const passwordInput = screen.getByLabelText(/パスワード/i)
+    const submitButton = screen.getByRole('button', { name: /ログイン/i })
+
+    // 5回失敗させる
+    for (let i = 0; i < 5; i++) {
+      await user.clear(emailInput)
+      await user.clear(passwordInput)
+      await user.type(emailInput, 'test@example.com')
+      await user.type(passwordInput, 'WrongPassword123')
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/認証に失敗しました/i)).toBeInTheDocument()
+      })
+
+      // エラーメッセージをクリア（次の試行のため）
+      mockLoginAction.mockClear()
+    }
+
+    // 6回目はレート制限エラーになる
+    await user.clear(emailInput)
+    await user.clear(passwordInput)
+    await user.type(emailInput, 'test@example.com')
+    await user.type(passwordInput, 'WrongPassword123')
+    await user.click(submitButton)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/試行回数が多すぎます/i)
+      ).toBeInTheDocument()
+    })
   })
 })

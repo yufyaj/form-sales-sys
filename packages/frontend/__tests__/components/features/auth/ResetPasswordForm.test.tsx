@@ -1,13 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ResetPasswordForm from '@/components/features/auth/ResetPasswordForm'
-import { apiClient } from '@/lib/api'
+import * as authActions from '@/lib/auth/actions'
 
-// APIクライアントをモック
-jest.mock('@/lib/api', () => ({
-  apiClient: {
-    requestPasswordReset: jest.fn(),
-  },
+// Server Actionsをモック
+jest.mock('@/lib/auth/actions', () => ({
+  requestPasswordResetAction: jest.fn(),
 }))
 
 describe('ResetPasswordForm', () => {
@@ -55,9 +53,8 @@ describe('ResetPasswordForm', () => {
     await user.tab()
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/メールアドレスを入力してください/i)
-      ).toBeInTheDocument()
+      const errorElement = screen.getByRole('alert')
+      expect(errorElement).toHaveTextContent(/メールアドレスを入力してください/i)
     })
   })
 
@@ -79,9 +76,10 @@ describe('ResetPasswordForm', () => {
 
   it('正しい入力でリセットリンク送信が成功する', async () => {
     const user = userEvent.setup()
-    const mockRequestPasswordReset = apiClient.requestPasswordReset as jest.Mock
+    const mockRequestPasswordResetAction = authActions.requestPasswordResetAction as jest.Mock
 
-    mockRequestPasswordReset.mockResolvedValue({
+    mockRequestPasswordResetAction.mockResolvedValue({
+      success: true,
       message: 'パスワードリセットリンクをメールで送信しました。',
     })
 
@@ -96,7 +94,9 @@ describe('ResetPasswordForm', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(mockRequestPasswordReset).toHaveBeenCalledWith('test@example.com')
+      expect(mockRequestPasswordResetAction).toHaveBeenCalledWith({
+        email: 'test@example.com',
+      })
     })
 
     await waitFor(() => {
@@ -108,11 +108,12 @@ describe('ResetPasswordForm', () => {
 
   it('送信失敗時にエラーメッセージが表示される', async () => {
     const user = userEvent.setup()
-    const mockRequestPasswordReset = apiClient.requestPasswordReset as jest.Mock
+    const mockRequestPasswordResetAction = authActions.requestPasswordResetAction as jest.Mock
 
-    mockRequestPasswordReset.mockRejectedValue(
-      new Error('メールアドレスが見つかりません')
-    )
+    mockRequestPasswordResetAction.mockResolvedValue({
+      success: false,
+      error: '予期しないエラーが発生しました',
+    })
 
     render(<ResetPasswordForm />)
 
@@ -126,22 +127,23 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/メールアドレスが見つかりません/i)
+        screen.getByText(/予期しないエラーが発生しました/i)
       ).toBeInTheDocument()
     })
   })
 
   it('送信中はボタンが無効化される', async () => {
     const user = userEvent.setup()
-    const mockRequestPasswordReset = apiClient.requestPasswordReset as jest.Mock
+    const mockRequestPasswordResetAction = authActions.requestPasswordResetAction as jest.Mock
 
     // APIレスポンスを遅延させる
-    mockRequestPasswordReset.mockImplementation(
+    mockRequestPasswordResetAction.mockImplementation(
       () =>
         new Promise((resolve) =>
           setTimeout(
             () =>
               resolve({
+                success: true,
                 message: 'パスワードリセットリンクをメールで送信しました。',
               }),
             1000
