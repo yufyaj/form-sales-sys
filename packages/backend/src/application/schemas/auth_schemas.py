@@ -12,7 +12,7 @@ class UserRegisterRequest(BaseModel):
 
     organization_id: int = Field(..., gt=0, description="所属組織ID")
     email: EmailStr = Field(..., description="メールアドレス")
-    password: str = Field(..., min_length=8, max_length=100, description="パスワード（8文字以上）")
+    password: str = Field(..., min_length=8, max_length=72, description="パスワード（8-72文字）")
     full_name: str = Field(..., min_length=1, max_length=255, description="氏名")
     phone: str | None = Field(None, max_length=50, description="電話番号")
     avatar_url: str | None = Field(None, max_length=500, description="プロフィール画像URL")
@@ -25,9 +25,14 @@ class UserRegisterRequest(BaseModel):
         パスワードの強度をバリデーション
 
         最低限の要件：
-        - 8文字以上
+        - 8文字以上、72文字以下（bcryptの制限）
         - 英字と数字を含む
+        - UTF-8エンコード時に72バイト以下
         """
+        # bcryptの制限（72バイト）をチェック
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("パスワードは72バイト以下にする必要があります")
+
         if not any(c.isalpha() for c in v):
             raise ValueError("パスワードには英字を含める必要があります")
         if not any(c.isdigit() for c in v):
@@ -70,12 +75,23 @@ class PasswordResetRequest(BaseModel):
     """パスワードリセットリクエスト（リセットトークンを使用）"""
 
     token: str = Field(..., description="パスワードリセットトークン")
-    new_password: str = Field(..., min_length=8, max_length=100, description="新しいパスワード")
+    new_password: str = Field(..., min_length=8, max_length=72, description="新しいパスワード（8-72文字）")
 
     @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """パスワードの強度をバリデーション"""
+        """
+        パスワードの強度をバリデーション
+
+        最低限の要件：
+        - 8文字以上、72文字以下（bcryptの制限）
+        - 英字と数字を含む
+        - UTF-8エンコード時に72バイト以下
+        """
+        # bcryptの制限（72バイト）をチェック
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("パスワードは72バイト以下にする必要があります")
+
         if not any(c.isalpha() for c in v):
             raise ValueError("パスワードには英字を含める必要があります")
         if not any(c.isdigit() for c in v):

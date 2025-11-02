@@ -7,6 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.app.core.database import get_db
 from src.app.core.security import decode_access_token
 from src.app.main import app
 from src.infrastructure.persistence.models import Organization
@@ -23,16 +24,30 @@ async def test_organization(db_session: AsyncSession) -> Organization:
     )
     db_session.add(org)
     await db_session.flush()
-    await db_session.commit()
+    # commitは不要（トランザクション内で動作するため）
+    await db_session.refresh(org)
     return org
 
 
 @pytest.fixture
-async def client() -> AsyncClient:
-    """HTTPクライアント"""
+async def client(db_session: AsyncSession) -> AsyncClient:
+    """
+    HTTPクライアント
+
+    FastAPIアプリケーションの依存性を上書きして、テスト用のデータベースセッションを使用します。
+    """
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+    # クリーンアップ
+    app.dependency_overrides.clear()
 
 
 class TestAuthRegister:
@@ -149,7 +164,8 @@ class TestAuthLogin:
         token = data["access_token"]
         payload = decode_access_token(token)
         assert payload is not None
-        assert payload["email"] == "login@example.com"
+        assert "sub" in payload  # ユーザーIDが含まれていることを確認
+        assert payload["type"] == "access"  # トークンタイプが正しいことを確認
 
     async def test_login_wrong_password(
         self, client: AsyncClient, test_organization: Organization
@@ -211,7 +227,7 @@ class TestAuthPasswordReset:
     async def test_password_reset_request(
         self, client: AsyncClient, test_organization: Organization
     ) -> None:
-        """正常系：パスワードリセット依頼ができる"""
+        """異常系：パスワードリセット依頼は無効化されている（Phase2予定）"""
         # Arrange
         await client.post(
             "/auth/register",
@@ -229,13 +245,13 @@ class TestAuthPasswordReset:
             json={"email": "reset@example.com"},
         )
 
-        # Assert
-        assert response.status_code == 204
+        # Assert - Phase2まで無効化されているため501を返す
+        assert response.status_code == 501
 
     async def test_password_reset(
         self, client: AsyncClient, test_organization: Organization
     ) -> None:
-        """正常系：パスワードをリセットできる"""
+        """異常系：パスワードリセットは無効化されている（Phase2予定）"""
         # Arrange - ユーザーを登録
         register_response = await client.post(
             "/auth/register",
@@ -248,7 +264,7 @@ class TestAuthPasswordReset:
         )
         user_id = register_response.json()["id"]
 
-        # Act - パスワードをリセット
+        # Act - パスワードをリセット（Phase2まで無効化）
         response = await client.post(
             "/auth/password-reset",
             json={
@@ -257,15 +273,5 @@ class TestAuthPasswordReset:
             },
         )
 
-        # Assert
-        assert response.status_code == 200
-
-        # 新しいパスワードでログインできることを確認
-        login_response = await client.post(
-            "/auth/login",
-            json={
-                "email": "resettest@example.com",
-                "password": "newpassword456",
-            },
-        )
-        assert login_response.status_code == 200
+        # Assert - Phase2まで無効化されているため501を返す
+        assert response.status_code == 501

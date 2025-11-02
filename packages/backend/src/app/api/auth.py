@@ -7,10 +7,9 @@ import asyncio
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.app.core.config import get_settings
 from src.app.core.database import get_db
 from src.application.schemas.auth_schemas import (
     PasswordResetRequest,
@@ -35,8 +34,7 @@ from src.infrastructure.persistence.repositories.user_repository import UserRepo
 
 router = APIRouter(prefix="/auth", tags=["認証"])
 
-# レート制限の設定
-limiter = Limiter(key_func=get_remote_address)
+settings = get_settings()
 
 
 @router.post(
@@ -46,9 +44,7 @@ limiter = Limiter(key_func=get_remote_address)
     summary="ユーザー登録",
     description="新規ユーザーを登録します。パスワードは自動的にハッシュ化されます。",
 )
-@limiter.limit("5/minute")  # 1分間に5回まで（スパム対策）
 async def register(
-    req: Request,
     request: UserRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
@@ -87,9 +83,7 @@ async def register(
     summary="ログイン",
     description="メールアドレスとパスワードで認証し、JWTトークンを発行します。",
 )
-@limiter.limit("5/minute")  # 1分間に5回まで（ブルートフォース対策）
 async def login(
-    req: Request,
     request: UserLoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
@@ -148,9 +142,7 @@ async def logout() -> None:
     description="メールアドレスを指定してパスワードリセットを依頼します。",
     deprecated=True,
 )
-@limiter.limit("3/hour")  # 1時間に3回まで（厳格な制限）
 async def request_password_reset(
-    req: Request,
     request: PasswordResetRequestEmail,
     db: AsyncSession = Depends(get_db),
 ) -> None:

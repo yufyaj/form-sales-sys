@@ -5,17 +5,15 @@
 """
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from src.app.core.config import get_settings
 
-# bcryptを使用したパスワードハッシュ化コンテキスト
 # bcryptは推奨されるパスワードハッシュアルゴリズムで、以下の特徴があります：
 # - ソルト付き（レインボーテーブル攻撃に強い）
 # - 計算コストが高い（ブルートフォース攻撃に強い）
 # - 時間経過とともにコストを増やせる（将来的な攻撃にも対応可能）
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
@@ -23,7 +21,7 @@ def hash_password(password: str) -> str:
     パスワードをbcryptでハッシュ化します
 
     Args:
-        password: プレーンテキストのパスワード
+        password: プレーンテキストのパスワード（72バイト以下）
 
     Returns:
         str: bcryptでハッシュ化されたパスワード（60文字）
@@ -39,8 +37,17 @@ def hash_password(password: str) -> str:
         - bcryptは自動的にソルトを生成します
         - デフォルトのコストファクターは12ラウンドです
         - ハッシュ化には約0.3秒かかります（ブルートフォース攻撃対策）
+        - bcryptは72バイトまでのパスワードのみサポートします
     """
-    return pwd_context.hash(password)
+    # パスワードをバイト列に変換（UTF-8）
+    password_bytes = password.encode("utf-8")
+
+    # bcryptでハッシュ化（自動的にソルトが生成される）
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+
+    # 文字列として返す
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -66,7 +73,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         - 不正なハッシュ形式の場合はFalseを返します
     """
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        # パスワードとハッシュをバイト列に変換
+        password_bytes = plain_password.encode("utf-8")
+        hashed_bytes = hashed_password.encode("utf-8")
+
+        # bcryptで検証（constant-time comparison）
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
     except Exception:
         # ハッシュ形式が不正な場合や検証エラーの場合
         return False

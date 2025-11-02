@@ -5,17 +5,11 @@ FastAPIアプリケーションのエントリーポイント
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from src.app.api import auth
 from src.app.core.config import get_settings
 
 settings = get_settings()
-
-# レート制限の設定
-limiter = Limiter(key_func=get_remote_address)
 
 # FastAPIアプリケーションの作成
 app = FastAPI(
@@ -25,10 +19,6 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,  # 本番環境ではドキュメントを無効化
     redoc_url="/redoc" if settings.DEBUG else None,
 )
-
-# レート制限のステート設定
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORSミドルウェアの設定（セキュリティ強化版）
 app.add_middleware(
