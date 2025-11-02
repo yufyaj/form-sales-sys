@@ -45,7 +45,7 @@ async def test_create_user_success(db_session: AsyncSession, seed_roles: list[Ro
                     "email": "test@example.com",
                     "full_name": "テストユーザー",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
 
@@ -54,7 +54,7 @@ async def test_create_user_success(db_session: AsyncSession, seed_roles: list[Ro
         data = response.json()
         assert data["email"] == "test@example.com"
         assert data["full_name"] == "テストユーザー"
-        assert data["organization_id"] == str(org.id)
+        assert data["organization_id"] == org.id
         assert data["is_active"] is True
         assert data["is_email_verified"] is False
     finally:
@@ -95,7 +95,7 @@ async def test_create_user_duplicate_email(
                     "email": "duplicate@example.com",
                     "full_name": "ユーザー1",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
 
@@ -106,7 +106,7 @@ async def test_create_user_duplicate_email(
                     "email": "duplicate@example.com",
                     "full_name": "ユーザー2",
                     "password": "SecurePass456",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
 
@@ -149,7 +149,7 @@ async def test_get_user_success(db_session: AsyncSession, seed_roles: list[Role]
                     "email": "gettest@example.com",
                     "full_name": "取得テストユーザー",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
             created_user = create_response.json()
@@ -200,7 +200,7 @@ async def test_list_users_success(db_session: AsyncSession, seed_roles: list[Rol
                         "email": f"user{i}@example.com",
                         "full_name": f"ユーザー{i}",
                         "password": "SecurePass123",
-                        "organization_id": str(org.id),
+                        "organization_id": org.id,
                     },
                 )
 
@@ -249,7 +249,7 @@ async def test_update_user_success(db_session: AsyncSession, seed_roles: list[Ro
                     "email": "updatetest@example.com",
                     "full_name": "更新前",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
             created_user = create_response.json()
@@ -301,7 +301,7 @@ async def test_delete_inactive_user_success(
                     "email": "deletetest@example.com",
                     "full_name": "削除テスト",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
             created_user = create_response.json()
@@ -357,7 +357,7 @@ async def test_delete_active_user_fails(
                     "email": "activedelete@example.com",
                     "full_name": "アクティブ削除テスト",
                     "password": "SecurePass123",
-                    "organization_id": str(org.id),
+                    "organization_id": org.id,
                 },
             )
             created_user = create_response.json()
