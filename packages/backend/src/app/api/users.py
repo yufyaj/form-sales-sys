@@ -4,7 +4,7 @@
 ユーザーのCRUD操作とロール管理のエンドポイントを提供します
 """
 
-from uuid import UUID
+
 
 from fastapi import APIRouter, Depends, status
 
@@ -53,8 +53,8 @@ async def create_user(
     description="指定されたIDのユーザーを取得します。",
 )
 async def get_user(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> UserResponse:
     """
@@ -74,7 +74,7 @@ async def get_user(
     description="組織に所属するユーザー一覧を取得します。",
 )
 async def list_users(
-    organization_id: UUID,
+    organization_id: int,
     skip: int = 0,
     limit: int = 100,
     use_cases: UserUseCases = Depends(get_user_use_cases),
@@ -102,8 +102,8 @@ async def list_users(
     description="ユーザー情報を更新します。",
 )
 async def update_user(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     request: UserUpdateRequest,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> UserResponse:
@@ -125,8 +125,8 @@ async def update_user(
     description="ユーザーを論理削除します。アクティブなユーザーは削除できません。",
 )
 async def delete_user(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> None:
     """
@@ -147,8 +147,8 @@ async def delete_user(
     description="ユーザーのパスワードを変更します。",
 )
 async def change_password(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     request: PasswordChangeRequest,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> None:
@@ -169,8 +169,8 @@ async def change_password(
     description="ユーザー情報と割り当てられたロール一覧を取得します。",
 )
 async def get_user_with_roles(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> UserWithRolesResponse:
     """
@@ -195,8 +195,8 @@ async def get_user_with_roles(
     description="ユーザーにロールを割り当てます。",
 )
 async def assign_role(
-    user_id: UUID,
-    organization_id: UUID,
+    user_id: int,
+    organization_id: int,
     request: RoleAssignRequest,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> None:
@@ -217,9 +217,9 @@ async def assign_role(
     description="ユーザーからロールを削除します。",
 )
 async def remove_role(
-    user_id: UUID,
-    organization_id: UUID,
-    role_id: UUID,
+    user_id: int,
+    organization_id: int,
+    role_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
 ) -> None:
     """

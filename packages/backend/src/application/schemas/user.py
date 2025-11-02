@@ -6,7 +6,6 @@ API境界でのバリデーションとデータ変換を行うDTOスキーマ
 
 from datetime import datetime
 from typing import Annotated
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -51,7 +50,7 @@ class UserCreateRequest(UserBase):
             examples=["SecurePassword123!"],
         ),
     ]
-    organization_id: UUID = Field(
+    organization_id: int = Field(
         ...,
         description="所属組織ID",
     )
@@ -149,8 +148,8 @@ class PasswordChangeRequest(BaseModel):
 class UserResponse(UserBase):
     """ユーザーレスポンス"""
 
-    id: UUID = Field(..., description="ユーザーID")
-    organization_id: UUID = Field(..., description="所属組織ID")
+    id: int = Field(..., description="ユーザーID")
+    organization_id: int = Field(..., description="所属組織ID")
     is_active: bool = Field(..., description="アクティブフラグ")
     is_email_verified: bool = Field(..., description="メール確認済みフラグ")
     created_at: datetime = Field(..., description="作成日時")
@@ -215,7 +214,7 @@ class UserListResponse(BaseModel):
 class RoleResponse(BaseModel):
     """ロールレスポンス"""
 
-    id: UUID = Field(..., description="ロールID")
+    id: int = Field(..., description="ロールID")
     name: str = Field(..., description="ロール名")
     display_name: str = Field(..., description="表示名")
     description: str | None = Field(None, description="説明")
@@ -257,4 +256,4 @@ class UserWithRolesResponse(UserResponse):
 class RoleAssignRequest(BaseModel):
     """ロール割り当てリクエスト"""
 
-    role_id: UUID = Field(..., description="割り当てるロールID")
+    role_id: int = Field(..., description="割り当てるロールID")

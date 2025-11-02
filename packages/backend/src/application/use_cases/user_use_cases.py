@@ -4,7 +4,7 @@
 ユーザーのCRUD操作とビジネスロジックを実行します
 """
 
-from uuid import UUID
+
 
 from app.core.security import hash_password, verify_password
 from application.schemas.user import (
@@ -83,7 +83,7 @@ class UserUseCases:
         created_user = await self._user_repo.create(user)
         return created_user
 
-    async def get_user(self, user_id: UUID, organization_id: UUID) -> User:
+    async def get_user(self, user_id: int, organization_id: int) -> User:
         """
         ユーザーを取得
 
@@ -104,7 +104,7 @@ class UserUseCases:
 
     async def list_users(
         self,
-        organization_id: UUID,
+        organization_id: int,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[User], int]:
@@ -133,8 +133,8 @@ class UserUseCases:
 
     async def update_user(
         self,
-        user_id: UUID,
-        organization_id: UUID,
+        user_id: int,
+        organization_id: int,
         request: UserUpdateRequest,
     ) -> User:
         """
@@ -178,7 +178,7 @@ class UserUseCases:
         updated_user = await self._user_repo.update(user)
         return updated_user
 
-    async def delete_user(self, user_id: UUID, organization_id: UUID) -> None:
+    async def delete_user(self, user_id: int, organization_id: int) -> None:
         """
         ユーザーを論理削除
 
@@ -194,8 +194,8 @@ class UserUseCases:
 
     async def change_password(
         self,
-        user_id: UUID,
-        organization_id: UUID,
+        user_id: int,
+        organization_id: int,
         request: PasswordChangeRequest,
     ) -> None:
         """
@@ -227,9 +227,9 @@ class UserUseCases:
 
     async def assign_role(
         self,
-        user_id: UUID,
-        organization_id: UUID,
-        role_id: UUID,
+        user_id: int,
+        organization_id: int,
+        role_id: int,
     ) -> None:
         """
         ユーザーにロールを割り当て
@@ -253,9 +253,9 @@ class UserUseCases:
 
     async def remove_role(
         self,
-        user_id: UUID,
-        organization_id: UUID,
-        role_id: UUID,
+        user_id: int,
+        organization_id: int,
+        role_id: int,
     ) -> None:
         """
         ユーザーからロールを削除
@@ -277,7 +277,7 @@ class UserUseCases:
         # ロールを削除
         await self._role_repo.remove_role_from_user(user_id, role_id)
 
-    async def get_user_with_roles(self, user_id: UUID, organization_id: UUID) -> tuple[User, list]:
+    async def get_user_with_roles(self, user_id: int, organization_id: int) -> tuple[User, list]:
         """
         ユーザーとそのロール一覧を取得
 

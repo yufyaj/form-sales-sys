@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Sequence
-from uuid import UUID
+
 
 from infrastructure.persistence.models.organization import Organization
 
@@ -28,7 +28,7 @@ class IOrganizationRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, organization_id: UUID) -> Organization | None:
+    async def find_by_id(self, organization_id: int) -> Organization | None:
         """
         IDで組織を検索
 
@@ -63,7 +63,7 @@ class IOrganizationRepository(ABC):
     @abstractmethod
     async def list_by_parent(
         self,
-        parent_organization_id: UUID,
+        parent_organization_id: int,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
@@ -99,7 +99,7 @@ class IOrganizationRepository(ABC):
         pass
 
     @abstractmethod
-    async def soft_delete(self, organization_id: UUID) -> None:
+    async def soft_delete(self, organization_id: int) -> None:
         """
         組織を論理削除
 

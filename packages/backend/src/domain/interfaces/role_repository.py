@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Sequence
-from uuid import UUID
+
 
 from infrastructure.persistence.models.role import Role
 
@@ -15,7 +15,7 @@ class IRoleRepository(ABC):
     """ロールリポジトリの抽象インターフェース"""
 
     @abstractmethod
-    async def find_by_id(self, role_id: UUID) -> Role | None:
+    async def find_by_id(self, role_id: int) -> Role | None:
         """
         IDでロールを検索
 
@@ -51,7 +51,7 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def assign_role_to_user(self, user_id: UUID, role_id: UUID) -> None:
+    async def assign_role_to_user(self, user_id: int, role_id: int) -> None:
         """
         ユーザーにロールを割り当て
 
@@ -66,7 +66,7 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def remove_role_from_user(self, user_id: UUID, role_id: UUID) -> None:
+    async def remove_role_from_user(self, user_id: int, role_id: int) -> None:
         """
         ユーザーからロールを削除
 
@@ -81,7 +81,7 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_user_roles(self, user_id: UUID) -> Sequence[Role]:
+    async def get_user_roles(self, user_id: int) -> Sequence[Role]:
         """
         ユーザーに割り当てられたロール一覧を取得
 
@@ -94,7 +94,7 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def user_has_role(self, user_id: UUID, role_name: str) -> bool:
+    async def user_has_role(self, user_id: int, role_name: str) -> bool:
         """
         ユーザーが特定のロールを持っているか確認
 

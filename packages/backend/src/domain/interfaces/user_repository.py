@@ -7,7 +7,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Sequence
-from uuid import UUID
+
 
 from infrastructure.persistence.models.user import User
 
@@ -32,7 +32,7 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, user_id: UUID, organization_id: UUID) -> User | None:
+    async def find_by_id(self, user_id: int, organization_id: int) -> User | None:
         """
         IDでユーザーを検索（マルチテナント対応）
 
@@ -46,7 +46,7 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_email(self, email: str, organization_id: UUID) -> User | None:
+    async def find_by_email(self, email: str, organization_id: int) -> User | None:
         """
         メールアドレスでユーザーを検索（マルチテナント対応）
 
@@ -62,7 +62,7 @@ class IUserRepository(ABC):
     @abstractmethod
     async def list_by_organization(
         self,
-        organization_id: UUID,
+        organization_id: int,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
@@ -99,7 +99,7 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
-    async def soft_delete(self, user_id: UUID, organization_id: UUID) -> None:
+    async def soft_delete(self, user_id: int, organization_id: int) -> None:
         """
         ユーザーを論理削除
 
@@ -114,7 +114,7 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
-    async def exists_by_email(self, email: str, organization_id: UUID) -> bool:
+    async def exists_by_email(self, email: str, organization_id: int) -> bool:
         """
         メールアドレスの重複チェック
 
@@ -129,7 +129,7 @@ class IUserRepository(ABC):
 
     @abstractmethod
     async def count_by_organization(
-        self, organization_id: UUID, include_deleted: bool = False
+        self, organization_id: int, include_deleted: bool = False
     ) -> int:
         """
         組織に所属するユーザー数を取得

@@ -5,7 +5,7 @@
 """
 
 from typing import Sequence
-from uuid import UUID
+
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ class RoleRepository(IRoleRepository):
         """
         self._session = session
 
-    async def find_by_id(self, role_id: UUID) -> Role | None:
+    async def find_by_id(self, role_id: int) -> Role | None:
         """
         IDでロールを検索
 
@@ -67,7 +67,7 @@ class RoleRepository(IRoleRepository):
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
-    async def assign_role_to_user(self, user_id: UUID, role_id: UUID) -> None:
+    async def assign_role_to_user(self, user_id: int, role_id: int) -> None:
         """
         ユーザーにロールを割り当て
 
@@ -108,7 +108,7 @@ class RoleRepository(IRoleRepository):
         self._session.add(user_role)
         await self._session.flush()
 
-    async def remove_role_from_user(self, user_id: UUID, role_id: UUID) -> None:
+    async def remove_role_from_user(self, user_id: int, role_id: int) -> None:
         """
         ユーザーからロールを削除
 
@@ -134,7 +134,7 @@ class RoleRepository(IRoleRepository):
             await self._session.delete(user_role)
             await self._session.flush()
 
-    async def get_user_roles(self, user_id: UUID) -> Sequence[Role]:
+    async def get_user_roles(self, user_id: int) -> Sequence[Role]:
         """
         ユーザーに割り当てられたロール一覧を取得
 
@@ -153,7 +153,7 @@ class RoleRepository(IRoleRepository):
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
-    async def user_has_role(self, user_id: UUID, role_name: str) -> bool:
+    async def user_has_role(self, user_id: int, role_name: str) -> bool:
         """
         ユーザーが特定のロールを持っているか確認
 

@@ -6,7 +6,7 @@ SQLAlchemy 2.0の非同期APIを使用したユーザーリポジトリの実装
 
 from datetime import datetime, timezone
 from typing import Sequence
-from uuid import UUID
+
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
@@ -56,7 +56,7 @@ class UserRepository(IUserRepository):
                 raise DuplicateEmailException(user.email)
             raise
 
-    async def find_by_id(self, user_id: UUID, organization_id: UUID) -> User | None:
+    async def find_by_id(self, user_id: int, organization_id: int) -> User | None:
         """
         IDでユーザーを検索（マルチテナント対応）
 
@@ -77,7 +77,7 @@ class UserRepository(IUserRepository):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def find_by_email(self, email: str, organization_id: UUID) -> User | None:
+    async def find_by_email(self, email: str, organization_id: int) -> User | None:
         """
         メールアドレスでユーザーを検索（マルチテナント対応）
 
@@ -100,7 +100,7 @@ class UserRepository(IUserRepository):
 
     async def list_by_organization(
         self,
-        organization_id: UUID,
+        organization_id: int,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
@@ -160,7 +160,7 @@ class UserRepository(IUserRepository):
                 raise DuplicateEmailException(user.email)
             raise
 
-    async def soft_delete(self, user_id: UUID, organization_id: UUID) -> None:
+    async def soft_delete(self, user_id: int, organization_id: int) -> None:
         """
         ユーザーを論理削除
 
@@ -185,7 +185,7 @@ class UserRepository(IUserRepository):
         user.deleted_at = datetime.now(timezone.utc)
         await self._session.flush()
 
-    async def exists_by_email(self, email: str, organization_id: UUID) -> bool:
+    async def exists_by_email(self, email: str, organization_id: int) -> bool:
         """
         メールアドレスの重複チェック
 
@@ -207,7 +207,7 @@ class UserRepository(IUserRepository):
         return result.scalar_one_or_none() is not None
 
     async def count_by_organization(
-        self, organization_id: UUID, include_deleted: bool = False
+        self, organization_id: int, include_deleted: bool = False
     ) -> int:
         """
         組織に所属するユーザー数を取得
