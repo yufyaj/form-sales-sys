@@ -106,3 +106,44 @@ class IRoleRepository(ABC):
             ロールを持っている場合True
         """
         pass
+
+    @abstractmethod
+    async def user_has_any_role(self, user_id: int, role_names: list[str]) -> bool:
+        """
+        ユーザーが指定されたロールのいずれかを持っているか確認
+
+        Args:
+            user_id: ユーザーID
+            role_names: ロール名のリスト
+
+        Returns:
+            いずれかのロールを持っている場合True
+        """
+        pass
+
+    @abstractmethod
+    async def get_user_permissions(self, user_id: int) -> Sequence[str]:
+        """
+        ユーザーが持つ全ての権限コードを取得
+
+        Args:
+            user_id: ユーザーID
+
+        Returns:
+            権限コードのリスト（例: ["project:create", "project:read"]）
+        """
+        pass
+
+    @abstractmethod
+    async def user_has_permission(self, user_id: int, permission_code: str) -> bool:
+        """
+        ユーザーが特定の権限を持っているか確認
+
+        Args:
+            user_id: ユーザーID
+            permission_code: 権限コード（例: "project:create"）
+
+        Returns:
+            権限を持っている場合True
+        """
+        pass

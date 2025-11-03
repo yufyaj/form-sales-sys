@@ -13,9 +13,9 @@ from sqlalchemy.orm import selectinload
 
 from src.domain.exceptions import RoleNotFoundException, UserNotFoundException
 from src.domain.interfaces.role_repository import IRoleRepository
-from src.infrastructure.persistence.models.role import Role
+from src.infrastructure.persistence.models.role import Permission, Role
 from src.infrastructure.persistence.models.user import User
-from src.infrastructure.persistence.models.user_role import UserRole
+from src.infrastructure.persistence.models.user_role import RolePermission, UserRole
 
 
 class RoleRepository(IRoleRepository):
@@ -171,6 +171,91 @@ class RoleRepository(IRoleRepository):
                 and_(
                     UserRole.user_id == user_id,
                     Role.name == role_name,
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def user_has_any_role(self, user_id: int, role_names: list[str]) -> bool:
+        """
+        ユーザーが指定されたロールのいずれかを持っているか確認
+
+        Args:
+            user_id: ユーザーID
+            role_names: ロール名のリスト
+
+        Returns:
+            いずれかのロールを持っている場合True
+        """
+        if not role_names:
+            return False
+
+        stmt = (
+            select(UserRole.id)
+            .join(Role, UserRole.role_id == Role.id)
+            .where(
+                and_(
+                    UserRole.user_id == user_id,
+                    Role.name.in_(role_names),
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def get_user_permissions(self, user_id: int) -> Sequence[str]:
+        """
+        ユーザーが持つ全ての権限コードを取得
+
+        Args:
+            user_id: ユーザーID
+
+        Returns:
+            権限コードのリスト（例: ["project:create", "project:read"]）
+        """
+        stmt = (
+            select(Permission.resource, Permission.action)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .join(Role, RolePermission.role_id == Role.id)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+            .distinct()
+        )
+        result = await self._session.execute(stmt)
+        permissions = result.all()
+
+        # resource:action形式の権限コードに変換
+        return [f"{perm.resource}:{perm.action}" for perm in permissions]
+
+    async def user_has_permission(self, user_id: int, permission_code: str) -> bool:
+        """
+        ユーザーが特定の権限を持っているか確認
+
+        Args:
+            user_id: ユーザーID
+            permission_code: 権限コード（例: "project:create"）
+
+        Returns:
+            権限を持っている場合True
+        """
+        # 権限コードをリソースとアクションに分割
+        try:
+            resource, action = permission_code.split(":", 1)
+        except ValueError:
+            # 無効な権限コード形式
+            return False
+
+        stmt = (
+            select(Permission.id)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .join(Role, RolePermission.role_id == Role.id)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(
+                and_(
+                    UserRole.user_id == user_id,
+                    Permission.resource == resource,
+                    Permission.action == action,
                 )
             )
         )

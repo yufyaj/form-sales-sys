@@ -6,16 +6,222 @@ FastAPIの依存性注入を使用して、リポジトリやユースケース�
 
 from typing import AsyncGenerator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.core.database import get_db
+from src.app.core.security import decode_access_token
 from src.application.use_cases.user_use_cases import UserUseCases
+from src.domain.entities.user_entity import UserEntity
 from src.infrastructure.persistence.repositories.organization_repository import (
     OrganizationRepository,
 )
 from src.infrastructure.persistence.repositories.role_repository import RoleRepository
 from src.infrastructure.persistence.repositories.user_repository import UserRepository
+
+# HTTP Bearer認証スキーム
+security = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(get_db),
+) -> UserEntity:
+    """
+    現在のユーザーを取得
+
+    JWTトークンからユーザー情報を取得し、データベースから最新のユーザー情報を返します。
+
+    Args:
+        credentials: HTTPベアラートークン
+        session: DBセッション
+
+    Returns:
+        認証されたユーザーエンティティ
+
+    Raises:
+        HTTPException: トークンが無効、または期限切れの場合
+    """
+    token = credentials.credentials
+
+    # トークンをデコード
+    payload = decode_access_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # ユーザーIDを取得（"sub"フィールドから取得）
+    user_id_str: str | None = payload.get("sub")
+    if user_id_str is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # user_idを整数に変換
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # データベースからユーザーを取得
+    user_repo = UserRepository(session)
+    user = await user_repo.find_by_id(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # アクティブでない、または削除されたユーザーはアクセス不可
+    if not user.can_login():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive or deleted",
+        )
+
+    return user
+
+
+async def get_current_active_user(
+    current_user: UserEntity = Depends(get_current_user),
+) -> UserEntity:
+    """
+    現在のアクティブユーザーを取得
+
+    Args:
+        current_user: 現在のユーザー
+
+    Returns:
+        アクティブなユーザーエンティティ
+
+    Raises:
+        HTTPException: ユーザーがアクティブでない場合
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
+        )
+    return current_user
+
+
+class RoleChecker:
+    """
+    ロールベースのアクセス制御を行う依存性クラス
+
+    指定されたロールのいずれかを持つユーザーのみアクセスを許可します。
+
+    Example:
+        @router.get("/admin")
+        async def admin_only(user: UserEntity = Depends(RoleChecker(["admin"]))):
+            return {"message": "Admin access granted"}
+    """
+
+    def __init__(self, allowed_roles: list[str]) -> None:
+        """
+        Args:
+            allowed_roles: 許可するロール名のリスト（例: ["admin", "sales_support"]）
+        """
+        self.allowed_roles = allowed_roles
+
+    async def __call__(
+        self,
+        current_user: UserEntity = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db),
+    ) -> UserEntity:
+        """
+        ユーザーが許可されたロールを持っているか確認
+
+        Args:
+            current_user: 現在のユーザー
+            session: DBセッション
+
+        Returns:
+            認可されたユーザーエンティティ
+
+        Raises:
+            HTTPException: ユーザーが必要なロールを持っていない場合
+        """
+        role_repo = RoleRepository(session)
+
+        # ユーザーが許可されたロールのいずれかを持っているか確認
+        has_role = await role_repo.user_has_any_role(current_user.id, self.allowed_roles)
+
+        if not has_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient roles. Required: {', '.join(self.allowed_roles)}",
+            )
+
+        return current_user
+
+
+class PermissionChecker:
+    """
+    権限ベースのアクセス制御を行う依存性クラス
+
+    指定された権限のいずれかを持つユーザーのみアクセスを許可します。
+
+    Example:
+        @router.post("/projects")
+        async def create_project(
+            user: UserEntity = Depends(PermissionChecker(["project:create"]))
+        ):
+            return {"message": "Project created"}
+    """
+
+    def __init__(self, required_permissions: list[str]) -> None:
+        """
+        Args:
+            required_permissions: 必要な権限コードのリスト（例: ["project:create"]）
+        """
+        self.required_permissions = required_permissions
+
+    async def __call__(
+        self,
+        current_user: UserEntity = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db),
+    ) -> UserEntity:
+        """
+        ユーザーが必要な権限を持っているか確認
+
+        Args:
+            current_user: 現在のユーザー
+            session: DBセッション
+
+        Returns:
+            認可されたユーザーエンティティ
+
+        Raises:
+            HTTPException: ユーザーが必要な権限を持っていない場合
+        """
+        role_repo = RoleRepository(session)
+
+        # 各権限をチェック（いずれか1つでもあればOK）
+        for permission in self.required_permissions:
+            has_permission = await role_repo.user_has_permission(
+                current_user.id, permission
+            )
+            if has_permission:
+                return current_user
+
+        # どの権限も持っていない場合はエラー
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required: {', '.join(self.required_permissions)}",
+        )
 
 
 async def get_user_use_cases(
