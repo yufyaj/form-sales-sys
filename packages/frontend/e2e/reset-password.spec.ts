@@ -36,9 +36,9 @@ test.describe('パスワードリセットページ', () => {
     await page.getByLabel('メールアドレス').click()
     await page.keyboard.press('Tab')
 
-    // エラーメッセージを確認
+    // エラーメッセージを確認（exactオプションで厳密にマッチ）
     await expect(
-      page.getByText('メールアドレスを入力してください')
+      page.getByText('メールアドレスを入力してください', { exact: true })
     ).toBeVisible()
   })
 
@@ -66,7 +66,9 @@ test.describe('パスワードリセットページ', () => {
     await expect(page.getByRole('heading', { name: 'ログイン' })).toBeVisible()
   })
 
-  test('正しいメールアドレスでリセットリンク送信が成功する（モック）', async ({
+  // Note: Server Actionsを使用しているため、page.routeでのモックは機能しません
+  // 統合テストでは実際のバックエンドAPIが必要です
+  test.skip('正しいメールアドレスでリセットリンク送信が成功する（モック）', async ({
     page,
   }) => {
     // APIリクエストをモック
@@ -92,7 +94,9 @@ test.describe('パスワードリセットページ', () => {
     ).toBeVisible()
   })
 
-  test('存在しないメールアドレスでエラーメッセージが表示される（モック）', async ({
+  // Note: Server Actionsを使用しているため、page.routeでのモックは機能しません
+  // 統合テストでは実際のバックエンドAPIが必要です
+  test.skip('存在しないメールアドレスでエラーメッセージが表示される（モック）', async ({
     page,
   }) => {
     // APIリクエストをモック（エラーレスポンス）
@@ -118,7 +122,9 @@ test.describe('パスワードリセットページ', () => {
     ).toBeVisible()
   })
 
-  test('送信中はボタンが無効化される', async ({ page }) => {
+  // Note: Server Actionsを使用しているため、page.routeでのモックは機能しません
+  // 統合テストでは実際のバックエンドAPIが必要です
+  test.skip('送信中はボタンが無効化される', async ({ page }) => {
     // APIリクエストを遅延させる
     await page.route('**/api/auth/reset-password', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
