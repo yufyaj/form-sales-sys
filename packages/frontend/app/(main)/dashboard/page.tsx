@@ -1,3 +1,10 @@
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'ダッシュボード | フォーム営業支援システム',
+  description: 'フォーム営業活動の概要とプロジェクト管理',
+}
+
 /**
  * ダッシュボードページ
  * ログイン後のホーム画面

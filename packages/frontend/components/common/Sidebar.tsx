@@ -68,7 +68,15 @@ export default function Sidebar({
     },
   ]
 
-  // ロールに基づいてナビゲーション項目をフィルタリング
+  /**
+   * ロールに基づいてナビゲーション項目をフィルタリング
+   *
+   * 重要なセキュリティ注意事項:
+   * このフィルタリングはUX向けの表示制御のみです。
+   * 実際の認可チェックは必ずサーバーサイドで実施してください。
+   * クライアントサイドのJavaScriptは改変可能であり、
+   * UIを非表示にするだけではセキュリティ対策として不十分です。
+   */
   const filteredNavItems = navItems.filter(item => {
     if (!item.roles) return true
     if (!userRole) return false

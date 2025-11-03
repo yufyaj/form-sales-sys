@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { User } from '@/types/auth'
+import { useState, useEffect } from 'react'
+import { User, UserRole, sanitizeUserName } from '@/types/auth'
 
 interface HeaderProps {
   user?: User
@@ -14,6 +14,23 @@ interface HeaderProps {
  */
 export default function Header({ user, onLogout }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  // Escapeキーでメニューを閉じる（アクセシビリティ向上）
+  useEffect(() => {
+    if (!isMenuOpen) return
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isMenuOpen])
+
+  // サニタイズされた表示名を取得（XSS対策）
+  const displayName = sanitizeUserName(user?.name) || user?.email
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white">
@@ -34,9 +51,9 @@ export default function Header({ user, onLogout }: HeaderProps) {
               aria-label="ユーザーメニュー"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white">
-                {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                {displayName?.charAt(0).toUpperCase()}
               </div>
-              <span className="hidden sm:inline">{user.name || user.email}</span>
+              <span className="hidden sm:inline">{displayName}</span>
               <svg
                 className={`h-4 w-4 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
                 fill="none"
@@ -63,7 +80,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
                   <div className="p-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {user.name || user.email}
+                      {displayName}
                     </p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                     {user.role && (
@@ -94,13 +111,13 @@ export default function Header({ user, onLogout }: HeaderProps) {
 }
 
 /**
- * ロールのラベルを取得
+ * ロールのラベルを取得（型安全性向上）
  */
-function getRoleLabel(role: string): string {
-  const roleLabels: Record<string, string> = {
+function getRoleLabel(role: UserRole): string {
+  const roleLabels: Record<UserRole, string> = {
     admin: '管理者',
     manager: 'マネージャー',
     member: 'メンバー',
   }
-  return roleLabels[role] || role
+  return roleLabels[role]
 }
