@@ -3,7 +3,14 @@
 
 パスワードハッシュ化、JWT認証など、セキュリティ関連の機能を提供します。
 """
+from datetime import datetime, timedelta, timezone
+
+from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+from app.core.config import get_settings
+
+settings = get_settings()
 
 # bcryptを使用したパスワードハッシュ化コンテキスト
 # bcryptは推奨されるパスワードハッシュアルゴリズムで、以下の特徴があります：
@@ -88,3 +95,74 @@ def is_password_hash(value: str) -> bool:
         - 長さは60文字です
     """
     return value.startswith("$2b$") and len(value) == 60
+
+
+# JWT認証関連の定数
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # アクセストークンの有効期限（30分）
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    JWTアクセストークンを生成します
+
+    Args:
+        data: トークンに含めるペイロードデータ（通常はuser_id, organization_id, emailなど）
+        expires_delta: トークンの有効期限（指定しない場合はデフォルト30分）
+
+    Returns:
+        str: JWT形式のアクセストークン
+
+    Example:
+        >>> token_data = {"sub": 1, "organization_id": 1, "email": "user@example.com"}
+        >>> token = create_access_token(token_data)
+        >>> len(token) > 100  # JWTは通常100文字以上
+        True
+
+    Security Notes:
+        - HS256アルゴリズムを使用（対称鍵暗号）
+        - SECRET_KEYは環境変数から取得（絶対にハードコードしない）
+        - トークンには機密情報を含めない（暗号化ではなく署名のみ）
+        - 短い有効期限で定期的な再認証を促す
+    """
+    to_encode = data.copy()
+
+    # 有効期限を設定
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode.update({"exp": expire})
+
+    # JWTトークンを生成
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+
+def decode_access_token(token: str) -> dict | None:
+    """
+    JWTアクセストークンをデコードして検証します
+
+    Args:
+        token: 検証するJWTトークン
+
+    Returns:
+        dict | None: デコードされたペイロード、検証失敗の場合はNone
+
+    Example:
+        >>> token = create_access_token({"sub": 1, "email": "user@example.com"})
+        >>> payload = decode_access_token(token)
+        >>> payload["sub"]
+        1
+
+    Security Notes:
+        - トークンの署名を検証（改ざん検知）
+        - 有効期限を検証（期限切れトークンを拒否）
+        - JWTErrorをキャッチしてNoneを返す（例外を外部に漏らさない）
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return payload
+    except JWTError:
+        # トークンが無効（署名不正、期限切れ、形式不正など）
+        return None
