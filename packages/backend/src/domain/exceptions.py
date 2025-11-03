@@ -32,7 +32,7 @@ class DuplicateEmailError(DomainException):
     """メールアドレスが既に存在する場合の例外"""
 
     def __init__(self, email: str) -> None:
-        super().__init__(f"User with email {email} already exists")
+        super().__init__(f"このメールアドレスは既に使用されています", {"email": email})
 
 
 class InvalidCredentialsError(DomainException):

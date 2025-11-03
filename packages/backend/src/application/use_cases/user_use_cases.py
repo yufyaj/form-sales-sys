@@ -13,6 +13,7 @@ from src.application.schemas.user import (
     UserUpdateRequest,
 )
 from src.domain.exceptions import (
+    BusinessRuleViolationException,
     DuplicateEmailException,
     InvalidCredentialsException,
     OrganizationNotFoundException,
@@ -70,18 +71,16 @@ class UserUseCases:
         # パスワードをハッシュ化
         hashed_password = hash_password(request.password)
 
-        # ユーザーエンティティを作成
-        user = User(
-            email=request.email,
-            full_name=request.full_name,
-            hashed_password=hashed_password,
-            organization_id=request.organization_id,
-            is_active=True,  # デフォルトでアクティブ
-            is_email_verified=False,  # メール未確認
-        )
-
         # リポジトリで永続化
-        created_user = await self._user_repo.create(user)
+        created_user = await self._user_repo.create(
+            organization_id=request.organization_id,
+            email=request.email,
+            hashed_password=hashed_password,
+            full_name=request.full_name,
+            phone=None,
+            avatar_url=None,
+            description=None,
+        )
         return created_user
 
     async def get_user(self, user_id: int, organization_id: int) -> User:
@@ -98,7 +97,7 @@ class UserUseCases:
         Raises:
             UserNotFoundException: ユーザーが見つからない場合
         """
-        user = await self._user_repo.find_by_id(user_id, organization_id)
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
         if user is None:
             raise UserNotFoundException(user_id=str(user_id))
         return user
@@ -154,7 +153,7 @@ class UserUseCases:
             DuplicateEmailException: メールアドレスが重複している場合
         """
         # ユーザーを取得
-        user = await self._user_repo.find_by_id(user_id, organization_id)
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
         if user is None:
             raise UserNotFoundException(user_id=str(user_id))
 
@@ -190,8 +189,20 @@ class UserUseCases:
 
         Raises:
             UserNotFoundException: ユーザーが見つからない場合
-            CannotDeleteActiveUserException: アクティブなユーザーを削除しようとした場合
+            BusinessRuleViolationException: アクティブなユーザーを削除しようとした場合
         """
+        # ユーザーを取得
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
+        if user is None:
+            raise UserNotFoundException(user_id=str(user_id))
+
+        # アクティブなユーザーは削除できない
+        if user.is_active:
+            raise BusinessRuleViolationException(
+                "アクティブなユーザーは削除できません。先に無効化してください。",
+                {"user_id": user_id}
+            )
+
         await self._user_repo.soft_delete(user_id, organization_id)
 
     async def change_password(
@@ -213,7 +224,7 @@ class UserUseCases:
             InvalidCredentialsException: 現在のパスワードが正しくない場合
         """
         # ユーザーを取得
-        user = await self._user_repo.find_by_id(user_id, organization_id)
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
         if user is None:
             raise UserNotFoundException(user_id=str(user_id))
 
@@ -246,7 +257,7 @@ class UserUseCases:
             RoleNotFoundException: ロールが見つからない場合
         """
         # ユーザーの存在確認（マルチテナント対応）
-        user = await self._user_repo.find_by_id(user_id, organization_id)
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
         if user is None:
             raise UserNotFoundException(user_id=str(user_id))
 
@@ -272,7 +283,7 @@ class UserUseCases:
             RoleNotFoundException: ロールが見つからない場合
         """
         # ユーザーの存在確認（マルチテナント対応）
-        user = await self._user_repo.find_by_id(user_id, organization_id)
+        user = await self._user_repo.find_by_id_with_org(user_id, organization_id)
         if user is None:
             raise UserNotFoundException(user_id=str(user_id))
 

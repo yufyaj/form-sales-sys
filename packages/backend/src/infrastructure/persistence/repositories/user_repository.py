@@ -4,7 +4,9 @@
 IUserRepositoryインターフェースの具体的な実装。
 SQLAlchemyを使用してデータベース操作を行います。
 """
-from sqlalchemy import select
+from datetime import datetime, timezone
+
+from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,6 +114,106 @@ class UserRepository(IUserRepository):
         await self._session.refresh(user)
 
         return self._to_entity(user)
+
+    async def find_by_id_with_org(
+        self, user_id: int, organization_id: int
+    ) -> UserEntity | None:
+        """IDと組織IDでユーザーを検索（マルチテナント対応）"""
+        stmt = select(User).where(
+            and_(
+                User.id == user_id,
+                User.organization_id == organization_id,
+                User.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            return None
+
+        return self._to_entity(user)
+
+    async def list_by_organization(
+        self,
+        organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        include_deleted: bool = False,
+    ) -> list[UserEntity]:
+        """組織に属するユーザーの一覧を取得"""
+        conditions = [User.organization_id == organization_id]
+        if not include_deleted:
+            conditions.append(User.deleted_at.is_(None))
+
+        stmt = (
+            select(User)
+            .where(and_(*conditions))
+            .offset(skip)
+            .limit(limit)
+            .order_by(User.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        users = result.scalars().all()
+
+        return [self._to_entity(user) for user in users]
+
+    async def count_by_organization(
+        self, organization_id: int, include_deleted: bool = False
+    ) -> int:
+        """組織に属するユーザーの総数を取得"""
+        conditions = [User.organization_id == organization_id]
+        if not include_deleted:
+            conditions.append(User.deleted_at.is_(None))
+
+        stmt = select(func.count(User.id)).where(and_(*conditions))
+        result = await self._session.execute(stmt)
+        count = result.scalar_one()
+
+        return count
+
+    async def update(self, user: UserEntity) -> UserEntity:
+        """ユーザー情報を更新"""
+        stmt = select(User).where(
+            User.id == user.id, User.deleted_at.is_(None)
+        )
+        result = await self._session.execute(stmt)
+        db_user = result.scalar_one_or_none()
+
+        if db_user is None:
+            raise UserNotFoundError(user_id=user.id)
+
+        # エンティティの値でモデルを更新
+        db_user.email = user.email
+        db_user.full_name = user.full_name
+        db_user.phone = user.phone
+        db_user.avatar_url = user.avatar_url
+        db_user.description = user.description
+        db_user.is_active = user.is_active
+        db_user.is_email_verified = user.is_email_verified
+
+        await self._session.flush()
+        await self._session.refresh(db_user)
+
+        return self._to_entity(db_user)
+
+    async def soft_delete(self, user_id: int, organization_id: int) -> None:
+        """ユーザーを論理削除（ソフトデリート）"""
+        stmt = select(User).where(
+            and_(
+                User.id == user_id,
+                User.organization_id == organization_id,
+                User.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            raise UserNotFoundError(user_id=user_id)
+
+        user.deleted_at = datetime.now(timezone.utc)
+        await self._session.flush()
 
     def _to_entity(self, user: User) -> UserEntity:
         """

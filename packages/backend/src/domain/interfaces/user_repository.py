@@ -105,3 +105,87 @@ class IUserRepository(ABC):
             UserNotFoundError: ユーザーが見つからない場合
         """
         pass
+
+    @abstractmethod
+    async def find_by_id_with_org(
+        self, user_id: int, organization_id: int
+    ) -> UserEntity | None:
+        """
+        IDと組織IDでユーザーを検索（マルチテナント対応）
+
+        Args:
+            user_id: ユーザーID
+            organization_id: 組織ID
+
+        Returns:
+            UserEntity | None: 見つかった場合はユーザーエンティティ、見つからない場合はNone
+        """
+        pass
+
+    @abstractmethod
+    async def list_by_organization(
+        self,
+        organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        include_deleted: bool = False,
+    ) -> list[UserEntity]:
+        """
+        組織に属するユーザーの一覧を取得
+
+        Args:
+            organization_id: 組織ID
+            skip: スキップする件数（ページネーション用）
+            limit: 取得する最大件数
+            include_deleted: 削除済みユーザーを含めるか
+
+        Returns:
+            list[UserEntity]: ユーザーエンティティのリスト
+        """
+        pass
+
+    @abstractmethod
+    async def count_by_organization(
+        self, organization_id: int, include_deleted: bool = False
+    ) -> int:
+        """
+        組織に属するユーザーの総数を取得
+
+        Args:
+            organization_id: 組織ID
+            include_deleted: 削除済みユーザーを含めるか
+
+        Returns:
+            int: ユーザーの総数
+        """
+        pass
+
+    @abstractmethod
+    async def update(self, user: UserEntity) -> UserEntity:
+        """
+        ユーザー情報を更新
+
+        Args:
+            user: 更新するユーザーエンティティ
+
+        Returns:
+            UserEntity: 更新されたユーザーエンティティ
+
+        Raises:
+            UserNotFoundError: ユーザーが見つからない場合
+        """
+        pass
+
+    @abstractmethod
+    async def soft_delete(self, user_id: int, organization_id: int) -> None:
+        """
+        ユーザーを論理削除（ソフトデリート）
+
+        Args:
+            user_id: ユーザーID
+            organization_id: 組織ID
+
+        Raises:
+            UserNotFoundError: ユーザーが見つからない場合
+        """
+        pass
