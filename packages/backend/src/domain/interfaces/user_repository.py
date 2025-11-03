@@ -1,144 +1,107 @@
 """
-ユーザーリポジトリの抽象インターフェース
+ユーザーリポジトリインターフェース
 
-依存性逆転の原則（DIP）に基づき、ドメイン層でインターフェースを定義し、
-インフラ層で実装します。これにより、ビジネスロジックをDBの実装詳細から分離します。
+ドメイン層で定義するリポジトリの抽象インターフェース。
+依存性逆転の原則（DIP）により、Infrastructure層がこのインターフェースを実装します。
 """
-
 from abc import ABC, abstractmethod
-from typing import Sequence
 
-
-from infrastructure.persistence.models.user import User
+from src.domain.entities.user_entity import UserEntity
 
 
 class IUserRepository(ABC):
-    """ユーザーリポジトリの抽象インターフェース"""
+    """
+    ユーザーリポジトリインターフェース
+
+    ユーザーの永続化操作を定義します。
+    """
 
     @abstractmethod
-    async def create(self, user: User) -> User:
+    async def create(
+        self,
+        organization_id: int,
+        email: str,
+        hashed_password: str,
+        full_name: str,
+        phone: str | None = None,
+        avatar_url: str | None = None,
+        description: str | None = None,
+    ) -> UserEntity:
         """
-        新規ユーザーを作成
+        ユーザーを作成
 
         Args:
-            user: 作成するユーザーエンティティ
+            organization_id: 所属組織ID
+            email: メールアドレス
+            hashed_password: ハッシュ化されたパスワード
+            full_name: 氏名
+            phone: 電話番号（オプション）
+            avatar_url: プロフィール画像URL（オプション）
+            description: 備考（オプション）
 
         Returns:
-            作成されたユーザー
+            UserEntity: 作成されたユーザーエンティティ
 
         Raises:
-            DuplicateEmailException: メールアドレスが重複している場合
+            DuplicateEmailError: メールアドレスが既に存在する場合
         """
         pass
 
     @abstractmethod
-    async def find_by_id(self, user_id: int, organization_id: int) -> User | None:
+    async def find_by_id(self, user_id: int) -> UserEntity | None:
         """
-        IDでユーザーを検索（マルチテナント対応）
+        IDでユーザーを検索
 
         Args:
             user_id: ユーザーID
-            organization_id: 組織ID（テナント分離）
 
         Returns:
-            見つかったユーザー、存在しない場合はNone
+            UserEntity | None: 見つかった場合はユーザーエンティティ、見つからない場合はNone
         """
         pass
 
     @abstractmethod
-    async def find_by_email(self, email: str, organization_id: int) -> User | None:
+    async def find_by_email(self, email: str) -> UserEntity | None:
         """
-        メールアドレスでユーザーを検索（マルチテナント対応）
+        メールアドレスでユーザーを検索
 
         Args:
             email: メールアドレス
-            organization_id: 組織ID（テナント分離）
 
         Returns:
-            見つかったユーザー、存在しない場合はNone
+            UserEntity | None: 見つかった場合はユーザーエンティティ、見つからない場合はNone
         """
         pass
 
     @abstractmethod
-    async def list_by_organization(
-        self,
-        organization_id: int,
-        skip: int = 0,
-        limit: int = 100,
-        include_deleted: bool = False,
-    ) -> Sequence[User]:
+    async def update_password(self, user_id: int, hashed_password: str) -> UserEntity:
         """
-        組織に所属するユーザー一覧を取得
-
-        Args:
-            organization_id: 組織ID
-            skip: スキップする件数（ページネーション）
-            limit: 取得する最大件数
-            include_deleted: 論理削除されたユーザーを含むか
-
-        Returns:
-            ユーザーのリスト
-        """
-        pass
-
-    @abstractmethod
-    async def update(self, user: User) -> User:
-        """
-        ユーザー情報を更新
-
-        Args:
-            user: 更新するユーザーエンティティ
-
-        Returns:
-            更新されたユーザー
-
-        Raises:
-            UserNotFoundException: ユーザーが見つからない場合
-            DuplicateEmailException: メールアドレスが重複している場合
-        """
-        pass
-
-    @abstractmethod
-    async def soft_delete(self, user_id: int, organization_id: int) -> None:
-        """
-        ユーザーを論理削除
+        ユーザーのパスワードを更新
 
         Args:
             user_id: ユーザーID
-            organization_id: 組織ID（テナント分離）
+            hashed_password: 新しいハッシュ化されたパスワード
+
+        Returns:
+            UserEntity: 更新されたユーザーエンティティ
 
         Raises:
-            UserNotFoundException: ユーザーが見つからない場合
-            CannotDeleteActiveUserException: アクティブなユーザーを削除しようとした場合
+            UserNotFoundError: ユーザーが見つからない場合
         """
         pass
 
     @abstractmethod
-    async def exists_by_email(self, email: str, organization_id: int) -> bool:
+    async def verify_email(self, user_id: int) -> UserEntity:
         """
-        メールアドレスの重複チェック
+        メールアドレスを認証済みにする
 
         Args:
-            email: チェックするメールアドレス
-            organization_id: 組織ID
+            user_id: ユーザーID
 
         Returns:
-            存在する場合True
-        """
-        pass
+            UserEntity: 更新されたユーザーエンティティ
 
-    @abstractmethod
-    async def count_by_organization(
-        self, organization_id: int, include_deleted: bool = False
-    ) -> int:
-        """
-        組織に所属するユーザー数を取得
-
-        Args:
-            organization_id: 組織ID
-            include_deleted: 論理削除されたユーザーを含むか
-
-        Returns:
-            ユーザー数
+        Raises:
+            UserNotFoundError: ユーザーが見つからない場合
         """
         pass

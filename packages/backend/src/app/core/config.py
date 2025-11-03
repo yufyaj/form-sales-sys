@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
 
+    # セキュリティ設定
+    ENABLE_RATE_LIMITING: bool = True
+
     # CORS設定
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
