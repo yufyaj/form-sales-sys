@@ -4,6 +4,7 @@ API依存性注入
 FastAPIの依存性注入を使用して、リポジトリやユースケースを提供します
 """
 
+import logging
 from typing import AsyncGenerator
 
 from fastapi import Depends, HTTPException, status
@@ -19,6 +20,9 @@ from src.infrastructure.persistence.repositories.organization_repository import 
 )
 from src.infrastructure.persistence.repositories.role_repository import RoleRepository
 from src.infrastructure.persistence.repositories.user_repository import UserRepository
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 # HTTP Bearer認証スキーム
 security = HTTPBearer()
@@ -84,11 +88,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # アクティブでない、または削除されたユーザーはアクセス不可
-    if not user.can_login():
+    # 削除されたユーザーはアクセス不可
+    if user.is_deleted():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive or deleted",
+            detail="User account is deleted",
         )
 
     return user
@@ -160,9 +164,19 @@ class RoleChecker:
         has_role = await role_repo.user_has_any_role(current_user.id, self.allowed_roles)
 
         if not has_role:
+            # セキュリティイベントをログ記録
+            logger.warning(
+                "Authorization denied: insufficient roles",
+                extra={
+                    "user_id": current_user.id,
+                    "user_email": current_user.email,
+                    "required_roles": self.allowed_roles,
+                    "event_type": "authorization_denied",
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient roles. Required: {', '.join(self.allowed_roles)}",
+                detail="Insufficient privileges",
             )
 
         return current_user
@@ -218,9 +232,19 @@ class PermissionChecker:
                 return current_user
 
         # どの権限も持っていない場合はエラー
+        # セキュリティイベントをログ記録
+        logger.warning(
+            "Authorization denied: insufficient permissions",
+            extra={
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "required_permissions": self.required_permissions,
+                "event_type": "authorization_denied",
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Insufficient permissions. Required: {', '.join(self.required_permissions)}",
+            detail="Insufficient privileges",
         )
 
 

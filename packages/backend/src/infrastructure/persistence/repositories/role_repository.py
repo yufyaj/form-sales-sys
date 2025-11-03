@@ -83,13 +83,13 @@ class RoleRepository(IRoleRepository):
         user_stmt = select(User.id).where(User.id == user_id)
         user_result = await self._session.execute(user_stmt)
         if user_result.scalar_one_or_none() is None:
-            raise UserNotFoundException(user_id=str(user_id))
+            raise UserNotFoundException(user_id=user_id)
 
         # ロールの存在確認
         role_stmt = select(Role.id).where(Role.id == role_id)
         role_result = await self._session.execute(role_stmt)
         if role_result.scalar_one_or_none() is None:
-            raise RoleNotFoundException(role_id=str(role_id))
+            raise RoleNotFoundException(role_id=role_id)
 
         # 既に割り当てられているかチェック
         existing_stmt = select(UserRole).where(
