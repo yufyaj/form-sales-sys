@@ -35,7 +35,7 @@ export default function MainLayout({ children, user, onLogout }: MainLayoutProps
           {/* モバイルメニューボタン */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="absolute left-4 top-4 z-10 rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
+            className="absolute left-4 top-4 z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
             aria-label="メニューを開く"
           >
             <svg
