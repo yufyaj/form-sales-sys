@@ -8,8 +8,8 @@
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_user_use_cases
-from application.schemas.user import (
+from src.app.api.dependencies import get_user_use_cases
+from src.application.schemas.user import (
     PasswordChangeRequest,
     RoleAssignRequest,
     UserCreateRequest,
@@ -18,7 +18,7 @@ from application.schemas.user import (
     UserUpdateRequest,
     UserWithRolesResponse,
 )
-from application.use_cases.user_use_cases import UserUseCases
+from src.application.use_cases.user_use_cases import UserUseCases
 
 router = APIRouter(prefix="/users", tags=["users"])
 

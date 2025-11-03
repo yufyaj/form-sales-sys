@@ -7,11 +7,11 @@ FastAPIアプリケーションのエントリーポイント
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.users import router as users_router
-from app.core.config import get_settings
-from app.core.exceptions import domain_exception_handler
-from domain.exceptions import DomainException
 from src.app.api import auth
+from src.app.api.users import router as users_router
+from src.app.core.config import get_settings
+from src.app.core.exceptions import domain_exception_handler
+from src.domain.exceptions import DomainException
 
 settings = get_settings()
 

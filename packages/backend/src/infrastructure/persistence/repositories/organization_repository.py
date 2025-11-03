@@ -11,9 +11,9 @@ from typing import Sequence
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.exceptions import OrganizationNotFoundException
-from domain.interfaces.organization_repository import IOrganizationRepository
-from infrastructure.persistence.models.organization import Organization
+from src.domain.exceptions import OrganizationNotFoundException
+from src.domain.interfaces.organization_repository import IOrganizationRepository
+from src.infrastructure.persistence.models.organization import Organization
 
 
 class OrganizationRepository(IOrganizationRepository):

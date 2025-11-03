@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 
 
-from infrastructure.persistence.models.role import Role
+from src.infrastructure.persistence.models.role import Role
 
 
 class IRoleRepository(ABC):

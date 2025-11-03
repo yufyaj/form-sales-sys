@@ -8,10 +8,10 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.main import app
-from infrastructure.persistence.models.organization import Organization, OrganizationType
-from infrastructure.persistence.models.role import Role
+from src.app.core.database import get_db
+from src.app.main import app
+from src.infrastructure.persistence.models.organization import Organization, OrganizationType
+from src.infrastructure.persistence.models.role import Role
 
 
 @pytest.mark.asyncio

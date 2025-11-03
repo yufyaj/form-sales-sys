@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 
 
-from infrastructure.persistence.models.organization import Organization
+from src.infrastructure.persistence.models.organization import Organization
 
 
 class IOrganizationRepository(ABC):

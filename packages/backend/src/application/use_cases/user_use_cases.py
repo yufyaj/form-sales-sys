@@ -6,22 +6,22 @@
 
 
 
-from app.core.security import hash_password, verify_password
-from application.schemas.user import (
+from src.app.core.security import hash_password, verify_password
+from src.application.schemas.user import (
     PasswordChangeRequest,
     UserCreateRequest,
     UserUpdateRequest,
 )
-from domain.exceptions import (
+from src.domain.exceptions import (
     DuplicateEmailException,
     InvalidCredentialsException,
     OrganizationNotFoundException,
     UserNotFoundException,
 )
-from domain.interfaces.organization_repository import IOrganizationRepository
-from domain.interfaces.role_repository import IRoleRepository
-from domain.interfaces.user_repository import IUserRepository
-from infrastructure.persistence.models.user import User
+from src.domain.interfaces.organization_repository import IOrganizationRepository
+from src.domain.interfaces.role_repository import IRoleRepository
+from src.domain.interfaces.user_repository import IUserRepository
+from src.infrastructure.persistence.models.user import User
 
 
 class UserUseCases:

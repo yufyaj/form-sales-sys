@@ -11,11 +11,11 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from domain.exceptions import RoleNotFoundException, UserNotFoundException
-from domain.interfaces.role_repository import IRoleRepository
-from infrastructure.persistence.models.role import Role
-from infrastructure.persistence.models.user import User
-from infrastructure.persistence.models.user_role import UserRole
+from src.domain.exceptions import RoleNotFoundException, UserNotFoundException
+from src.domain.interfaces.role_repository import IRoleRepository
+from src.infrastructure.persistence.models.role import Role
+from src.infrastructure.persistence.models.user import User
+from src.infrastructure.persistence.models.user_role import UserRole
 
 
 class RoleRepository(IRoleRepository):

@@ -9,13 +9,13 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from application.use_cases.user_use_cases import UserUseCases
-from infrastructure.persistence.repositories.organization_repository import (
+from src.app.core.database import get_db
+from src.application.use_cases.user_use_cases import UserUseCases
+from src.infrastructure.persistence.repositories.organization_repository import (
     OrganizationRepository,
 )
-from infrastructure.persistence.repositories.role_repository import RoleRepository
-from infrastructure.persistence.repositories.user_repository import UserRepository
+from src.infrastructure.persistence.repositories.role_repository import RoleRepository
+from src.infrastructure.persistence.repositories.user_repository import UserRepository
 
 
 async def get_user_use_cases(
