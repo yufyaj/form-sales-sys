@@ -63,7 +63,8 @@ class UserUseCases:
             raise OrganizationNotFoundException(organization_id=str(request.organization_id))
 
         # メールアドレスの重複チェック
-        if await self._user_repo.exists_by_email(request.email, request.organization_id):
+        existing_user = await self._user_repo.find_by_email(request.email)
+        if existing_user is not None and existing_user.organization_id == request.organization_id:
             raise DuplicateEmailException(email=request.email)
 
         # パスワードをハッシュ化
@@ -159,7 +160,8 @@ class UserUseCases:
 
         # メールアドレスの変更をチェック
         if request.email is not None and request.email != user.email:
-            if await self._user_repo.exists_by_email(request.email, organization_id):
+            existing_user = await self._user_repo.find_by_email(request.email)
+            if existing_user is not None and existing_user.organization_id == organization_id:
                 raise DuplicateEmailException(email=request.email)
             user.email = request.email
             user.is_email_verified = False  # メールアドレス変更時は再確認が必要

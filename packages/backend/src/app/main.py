@@ -89,8 +89,8 @@ async def add_security_headers(request: Request, call_next):
 app.add_exception_handler(DomainException, domain_exception_handler)
 
 # ルーターの登録
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(users_router, prefix="/api/v1")
+app.include_router(auth.router)  # 認証ルーターは /auth をプレフィックスとして持つ
+app.include_router(users_router, prefix="/api/v1")  # ユーザー管理は /api/v1/users
 
 
 @app.get("/health", tags=["health"])
