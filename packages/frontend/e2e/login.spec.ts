@@ -53,12 +53,25 @@ test.describe('ログインページ', () => {
     page,
   }) => {
     // 短いパスワードを入力
-    await page.getByLabel('パスワード').fill('1234567')
+    await page.getByLabel('パスワード').fill('Short1')
     await page.getByLabel('メールアドレス').click()
 
     // エラーメッセージを確認
     await expect(
-      page.getByText('パスワードは8文字以上で入力してください')
+      page.getByText('パスワードは12文字以上で入力してください')
+    ).toBeVisible()
+  })
+
+  test('複雑性要件を満たさないパスワードでバリデーションエラーが表示される', async ({
+    page,
+  }) => {
+    // 複雑性要件を満たさないパスワードを入力（小文字のみ）
+    await page.getByLabel('パスワード').fill('onlylowercase')
+    await page.getByLabel('メールアドレス').click()
+
+    // エラーメッセージを確認
+    await expect(
+      page.getByText('パスワードは大文字、小文字、数字を含む必要があります')
     ).toBeVisible()
   })
 
@@ -92,9 +105,9 @@ test.describe('ログインページ', () => {
       })
     })
 
-    // フォームに入力
+    // フォームに入力（複雑性要件を満たすパスワード）
     await page.getByLabel('メールアドレス').fill('test@example.com')
-    await page.getByLabel('パスワード').fill('password123')
+    await page.getByLabel('パスワード').fill('ValidPassword123')
 
     // ログインボタンをクリック
     await page.getByRole('button', { name: 'ログイン' }).click()
@@ -117,16 +130,16 @@ test.describe('ログインページ', () => {
       })
     })
 
-    // フォームに入力
+    // フォームに入力（複雑性要件を満たすが誤ったパスワード）
     await page.getByLabel('メールアドレス').fill('test@example.com')
-    await page.getByLabel('パスワード').fill('wrongpassword')
+    await page.getByLabel('パスワード').fill('WrongPassword123')
 
     // ログインボタンをクリック
     await page.getByRole('button', { name: 'ログイン' }).click()
 
     // エラーメッセージを確認
     await expect(
-      page.getByText('メールアドレスまたはパスワードが正しくありません')
+      page.getByText('予期しないエラーが発生しました')
     ).toBeVisible()
   })
 
@@ -144,9 +157,9 @@ test.describe('ログインページ', () => {
       })
     })
 
-    // フォームに入力
+    // フォームに入力（複雑性要件を満たすパスワード）
     await page.getByLabel('メールアドレス').fill('test@example.com')
-    await page.getByLabel('パスワード').fill('password123')
+    await page.getByLabel('パスワード').fill('ValidPassword123')
 
     // ログインボタンをクリック
     const loginButton = page.getByRole('button', { name: 'ログイン' })

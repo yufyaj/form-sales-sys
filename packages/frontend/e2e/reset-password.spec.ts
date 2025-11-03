@@ -112,9 +112,9 @@ test.describe('パスワードリセットページ', () => {
     // 送信ボタンをクリック
     await page.getByRole('button', { name: 'リセットリンクを送信' }).click()
 
-    // エラーメッセージを確認
+    // エラーメッセージを確認（セキュリティホワイトリストによる汎用メッセージ）
     await expect(
-      page.getByText('メールアドレスが見つかりません')
+      page.getByText('予期しないエラーが発生しました')
     ).toBeVisible()
   })
 
