@@ -11,10 +11,16 @@ export interface ResetPasswordFormData {
   email: string;
 }
 
+/**
+ * ユーザーロール
+ */
+export type UserRole = 'admin' | 'manager' | 'member';
+
 export interface User {
   id: string;
   email: string;
   name?: string;
+  role?: UserRole;
 }
 
 export interface AuthResponse {
