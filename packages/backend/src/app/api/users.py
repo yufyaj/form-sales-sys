@@ -8,7 +8,12 @@
 
 from fastapi import APIRouter, Depends, status
 
-from src.app.api.dependencies import get_user_use_cases
+from src.app.api.dependencies import (
+    RoleChecker,
+    get_current_active_user,
+    get_user_use_cases,
+)
+from src.domain.entities.user_entity import UserEntity
 from src.application.schemas.user import (
     PasswordChangeRequest,
     RoleAssignRequest,
@@ -28,11 +33,12 @@ router = APIRouter(prefix="/users", tags=["users"])
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="ユーザー作成",
-    description="新規ユーザーを作成します。パスワードは自動的にハッシュ化されます。",
+    description="新規ユーザーを作成します。パスワードは自動的にハッシュ化されます。管理者権限が必要です。",
 )
 async def create_user(
     request: UserCreateRequest,
     use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
 ) -> UserResponse:
     """
     新規ユーザーを作成
@@ -50,12 +56,13 @@ async def create_user(
     "/{user_id}",
     response_model=UserResponse,
     summary="ユーザー取得",
-    description="指定されたIDのユーザーを取得します。",
+    description="指定されたIDのユーザーを取得します。認証が必要です。",
 )
 async def get_user(
     user_id: int,
     organization_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: UserEntity = Depends(get_current_active_user),
 ) -> UserResponse:
     """
     ユーザーを取得
@@ -192,13 +199,14 @@ async def get_user_with_roles(
     "/{user_id}/roles",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="ロール割り当て",
-    description="ユーザーにロールを割り当てます。",
+    description="ユーザーにロールを割り当てます。管理者または営業支援会社の権限が必要です。",
 )
 async def assign_role(
     user_id: int,
     organization_id: int,
     request: RoleAssignRequest,
     use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
 ) -> None:
     """
     ユーザーにロールを割り当て
@@ -214,13 +222,14 @@ async def assign_role(
     "/{user_id}/roles/{role_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="ロール削除",
-    description="ユーザーからロールを削除します。",
+    description="ユーザーからロールを削除します。管理者または営業支援会社の権限が必要です。",
 )
 async def remove_role(
     user_id: int,
     organization_id: int,
     role_id: int,
     use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
 ) -> None:
     """
     ユーザーからロールを削除

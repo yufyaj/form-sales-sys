@@ -98,6 +98,42 @@ class AuthorizationException(DomainException):
     pass
 
 
+class InsufficientPermissionsError(AuthorizationException):
+    """権限不足エラー"""
+
+    def __init__(
+        self,
+        required_permissions: list[str] | None = None,
+        required_roles: list[str] | None = None,
+    ) -> None:
+        if required_permissions:
+            super().__init__(
+                f"Insufficient permissions. Required: {', '.join(required_permissions)}",
+                {"required_permissions": required_permissions},
+            )
+        elif required_roles:
+            super().__init__(
+                f"Insufficient roles. Required: {', '.join(required_roles)}",
+                {"required_roles": required_roles},
+            )
+        else:
+            super().__init__("Insufficient permissions")
+
+
+class PermissionNotFoundError(DomainException):
+    """権限が見つからない場合の例外"""
+
+    def __init__(
+        self, permission_id: int | None = None, permission_code: str | None = None
+    ) -> None:
+        if permission_id:
+            super().__init__(f"Permission with id {permission_id} not found")
+        elif permission_code:
+            super().__init__(f"Permission with code {permission_code} not found")
+        else:
+            super().__init__("Permission not found")
+
+
 class BusinessRuleViolationException(DomainException):
     """ビジネスルール違反の基底例外"""
 
