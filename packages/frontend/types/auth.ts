@@ -14,7 +14,7 @@ export interface ResetPasswordFormData {
 /**
  * ユーザーロール
  */
-export type UserRole = 'admin' | 'manager' | 'member';
+export type UserRole = 'sales_company' | 'customer' | 'worker';
 
 export interface User {
   id: string;

@@ -1,45 +1,44 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'ダッシュボード | フォーム営業支援システム',
-  description: 'フォーム営業活動の概要とプロジェクト管理',
-}
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 /**
  * ダッシュボードページ
- * ログイン後のホーム画面
+ * ユーザーのロールに応じて適切なダッシュボードにリダイレクトする
  */
 export default function DashboardPage() {
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    // ローディング中は何もしない
+    if (isLoading || !user) return
+
+    // ユーザーのロールに応じてリダイレクト
+    switch (user.role) {
+      case 'sales_company':
+        router.replace('/dashboard/sales-company')
+        break
+      case 'customer':
+        router.replace('/dashboard/customer')
+        break
+      case 'worker':
+        router.replace('/dashboard/worker')
+        break
+      default:
+        // ロールが不明な場合はログインページへ
+        router.replace('/login')
+    }
+  }, [user, isLoading, router])
+
+  // リダイレクト中はローディング表示
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          ダッシュボード
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          フォーム営業支援システムへようこそ
-        </p>
-      </div>
-
-      {/* サンプルカード */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">プロジェクト</h2>
-          <p className="mt-2 text-3xl font-bold text-blue-600">0</p>
-          <p className="mt-1 text-sm text-gray-500">進行中のプロジェクト</p>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">リスト</h2>
-          <p className="mt-2 text-3xl font-bold text-green-600">0</p>
-          <p className="mt-1 text-sm text-gray-500">登録済みリスト</p>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">送信済み</h2>
-          <p className="mt-2 text-3xl font-bold text-purple-600">0</p>
-          <p className="mt-1 text-sm text-gray-500">今月の送信数</p>
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+        <p className="text-gray-600">ダッシュボードを読み込んでいます...</p>
       </div>
     </div>
   )
