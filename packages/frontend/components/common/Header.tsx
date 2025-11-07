@@ -115,9 +115,9 @@ export default function Header({ user, onLogout }: HeaderProps) {
  */
 function getRoleLabel(role: UserRole): string {
   const roleLabels: Record<UserRole, string> = {
-    admin: '管理者',
-    manager: 'マネージャー',
-    member: 'メンバー',
+    sales_company: '営業支援会社',
+    customer: '顧客',
+    worker: 'ワーカー',
   }
   return roleLabels[role]
 }

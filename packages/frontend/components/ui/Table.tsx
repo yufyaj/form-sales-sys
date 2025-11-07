@@ -19,7 +19,7 @@ interface TableProps<T> {
  * 汎用テーブルコンポーネント
  * データ一覧の表示に使用
  */
-export default function Table<T extends Record<string, unknown>>({
+export default function Table<T extends Record<string, any>>({
   columns,
   data,
   keyExtractor,

@@ -7,7 +7,7 @@ describe('Header', () => {
     id: '1',
     email: 'test@example.com',
     name: 'テストユーザー',
-    role: 'admin',
+    role: 'sales_company',
   }
 
   const mockOnLogout = jest.fn()
@@ -68,14 +68,14 @@ describe('Header', () => {
       // ドロップダウン内のユーザー情報を確認（複数箇所に表示される場合があるため、getAllByTextを使用）
       expect(screen.getByText('test@example.com')).toBeInTheDocument()
       expect(screen.getAllByText('テストユーザー').length).toBeGreaterThan(0)
-      expect(screen.getByText('ロール: 管理者')).toBeInTheDocument()
+      expect(screen.getByText('ロール: 営業支援会社')).toBeInTheDocument()
     })
 
     it('ロールが各種表示される', () => {
       const testCases = [
-        { role: 'admin' as const, label: '管理者' },
-        { role: 'manager' as const, label: 'マネージャー' },
-        { role: 'member' as const, label: 'メンバー' },
+        { role: 'sales_company' as const, label: '営業支援会社' },
+        { role: 'customer' as const, label: '顧客' },
+        { role: 'worker' as const, label: 'ワーカー' },
       ]
 
       testCases.forEach(({ role, label }) => {

@@ -46,9 +46,14 @@ export async function apiRequest<T>(
   const { requireAuth = true, ...fetchOptions } = options
 
   // デフォルトのヘッダー
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+  }
+
+  // 既存のヘッダーをマージ
+  if (fetchOptions.headers) {
+    const existingHeaders = fetchOptions.headers as Record<string, string>
+    Object.assign(headers, existingHeaders)
   }
 
   // CSRF対策: POST/PUT/DELETE/PATCHリクエストにCSRFトークンを付与

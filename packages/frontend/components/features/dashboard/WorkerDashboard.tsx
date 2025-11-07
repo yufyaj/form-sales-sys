@@ -313,7 +313,7 @@ export default function WorkerDashboard() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           タスク一覧
         </h2>
-        <Table
+        <Table<Assignment>
           columns={columns}
           data={assignments}
           keyExtractor={(assignment) => assignment.id}

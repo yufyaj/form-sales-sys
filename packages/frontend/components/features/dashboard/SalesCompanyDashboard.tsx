@@ -239,7 +239,7 @@ export default function SalesCompanyDashboard() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           プロジェクト
         </h2>
-        <Table
+        <Table<Project>
           columns={columns}
           data={projects}
           keyExtractor={(project) => project.id}

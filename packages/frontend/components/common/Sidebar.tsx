@@ -34,37 +34,37 @@ export default function Sidebar({
       label: 'ダッシュボード',
       href: '/dashboard',
       icon: '📊',
-      roles: ['admin', 'manager', 'member'], // 全ロール
+      roles: ['sales_company', 'customer', 'worker'], // 全ロール
     },
     {
       label: 'プロジェクト',
       href: '/projects',
       icon: '📁',
-      roles: ['admin', 'manager', 'member'],
+      roles: ['sales_company', 'customer'],
     },
     {
       label: 'リスト管理',
       href: '/lists',
       icon: '📋',
-      roles: ['admin', 'manager', 'member'],
+      roles: ['sales_company', 'customer'],
     },
     {
       label: 'アナリティクス',
       href: '/analytics',
       icon: '📈',
-      roles: ['admin', 'manager'],
+      roles: ['sales_company'],
     },
     {
       label: 'ユーザー管理',
       href: '/users',
       icon: '👥',
-      roles: ['admin'], // 管理者のみ
+      roles: ['sales_company'], // 営業支援会社のみ
     },
     {
       label: '設定',
       href: '/settings',
       icon: '⚙️',
-      roles: ['admin', 'manager', 'member'],
+      roles: ['sales_company', 'customer', 'worker'],
     },
   ]
 
@@ -149,9 +149,9 @@ export default function Sidebar({
  */
 function getRoleLabel(role: UserRole): string {
   const roleLabels: Record<UserRole, string> = {
-    admin: '管理者',
-    manager: 'マネージャー',
-    member: 'メンバー',
+    sales_company: '営業支援会社',
+    customer: '顧客',
+    worker: 'ワーカー',
   }
   return roleLabels[role]
 }
