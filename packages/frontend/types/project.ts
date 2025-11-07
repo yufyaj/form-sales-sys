@@ -52,3 +52,29 @@ export interface UpdateProjectFormData {
   description?: string
   status?: ProjectStatus
 }
+
+/**
+ * プロジェクト名をサニタイズする
+ * 制御文字を削除し、最大長を100文字に制限
+ */
+export function sanitizeProjectName(name: string): string {
+  if (!name) return ''
+  // 最大長制限（100文字）
+  const truncated = name.slice(0, 100)
+  // 制御文字を削除
+  const cleaned = truncated.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+  return cleaned || ''
+}
+
+/**
+ * プロジェクト説明をサニタイズする
+ * 制御文字を削除し、最大長を500文字に制限
+ */
+export function sanitizeDescription(description: string | undefined): string | undefined {
+  if (!description) return undefined
+  // 最大長制限（500文字）
+  const truncated = description.slice(0, 500)
+  // 制御文字を削除
+  const cleaned = truncated.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+  return cleaned || undefined
+}

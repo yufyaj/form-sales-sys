@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@/types/auth'
+import { logError, logAuthError, logWarn } from '@/lib/logger'
 
 interface AuthContextType {
   user: User | null
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (response.status === 501) {
           // 認証が未実装の場合はモックユーザーを使用（開発中のみ）
-          console.warn(
+          logWarn(
             '警告: 認証が未実装です。モックユーザーを使用しています。' +
             '本番環境にデプロイする前に必ず実装してください。'
           )
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             id: '1',
             email: 'user@example.com',
             name: 'テストユーザー',
-            role: 'admin',
+            role: 'sales_company',
           })
           setIsLoading(false)
           return
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (!response.ok) {
           // 認証失敗時はログインページへリダイレクト
+          logAuthError('セッション検証失敗')
           router.push('/login')
           return
         }
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(userData)
         setError(null)
       } catch (err) {
-        console.error('認証エラー:', err)
+        logError('認証エラー', err)
         setError('認証に失敗しました')
         // エラー時もログインページへリダイレクト
         router.push('/login')
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // ログインページへリダイレクト
       router.push('/login')
     } catch (err) {
-      console.error('ログアウトエラー:', err)
+      logError('ログアウトエラー', err)
       setError('ログアウトに失敗しました')
       throw err
     } finally {

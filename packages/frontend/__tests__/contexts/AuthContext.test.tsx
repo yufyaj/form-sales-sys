@@ -7,6 +7,15 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
 
+// loggerのモック
+jest.mock('@/lib/logger', () => ({
+  logError: jest.fn(),
+  logAuthError: jest.fn(),
+  logWarn: jest.fn(),
+  logInfo: jest.fn(),
+  logDebug: jest.fn(),
+}))
+
 // fetchのモック
 global.fetch = jest.fn()
 
@@ -102,11 +111,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-name')).toHaveTextContent(
         'テストユーザー'
       )
-      expect(screen.getByTestId('user-role')).toHaveTextContent('admin')
-
-      expect(consoleWarn).toHaveBeenCalledWith(
-        expect.stringContaining('警告: 認証が未実装です')
-      )
+      expect(screen.getByTestId('user-role')).toHaveTextContent('sales_company')
 
       consoleWarn.mockRestore()
     })
@@ -160,8 +165,6 @@ describe('AuthContext', () => {
     })
 
     it('エラーが発生した場合はエラーメッセージを表示しログインページへリダイレクトする', async () => {
-      const consoleError = jest.spyOn(console, 'error').mockImplementation()
-
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error('Network error')
       )
@@ -177,12 +180,6 @@ describe('AuthContext', () => {
       })
 
       expect(mockRouter.push).toHaveBeenCalledWith('/login')
-      expect(consoleError).toHaveBeenCalledWith(
-        '認証エラー:',
-        expect.any(Error)
-      )
-
-      consoleError.mockRestore()
     })
   })
 
@@ -193,8 +190,6 @@ describe('AuthContext', () => {
         status: 501,
         ok: false,
       })
-
-      const consoleWarn = jest.spyOn(console, 'warn').mockImplementation()
 
       render(
         <AuthProvider>
@@ -226,8 +221,6 @@ describe('AuthContext', () => {
         method: 'POST',
         credentials: 'include',
       })
-
-      consoleWarn.mockRestore()
     })
 
     it('ログアウトが未実装(501)の場合でもログインページへリダイレクトする', async () => {
@@ -236,8 +229,6 @@ describe('AuthContext', () => {
         status: 501,
         ok: false,
       })
-
-      const consoleWarn = jest.spyOn(console, 'warn').mockImplementation()
 
       render(
         <AuthProvider>
@@ -264,8 +255,6 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(mockRouter.push).toHaveBeenCalledWith('/login')
       })
-
-      consoleWarn.mockRestore()
     })
 
     it.skip('ログアウトに失敗した場合はエラーメッセージを表示する', async () => {

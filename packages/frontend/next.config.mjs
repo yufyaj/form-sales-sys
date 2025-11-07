@@ -5,28 +5,15 @@ const nextConfig = {
   /**
    * セキュリティヘッダーの設定
    * OWASP推奨のセキュリティヘッダーを実装
+   *
+   * 注意: CSPはmiddleware.tsで設定（nonce-based）
+   * ここでは他のセキュリティヘッダーのみを設定
    */
   async headers() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // 本番環境では'unsafe-inline'と'unsafe-eval'を削除推奨
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
-              "font-src 'self' data:",
-              `connect-src 'self' ${API_URL}`,
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
-          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',

@@ -36,6 +36,16 @@ export default function Table<T extends Record<string, unknown>>({
     )
   }
 
+  // align値を安全なクラス名にマッピング（XSS対策）
+  const getAlignClass = (align?: 'left' | 'center' | 'right'): string => {
+    const alignMap = {
+      left: 'text-left',
+      center: 'text-center',
+      right: 'text-right',
+    }
+    return alignMap[align || 'left'] || 'text-left'
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
       <div className="overflow-x-auto">
@@ -45,7 +55,7 @@ export default function Table<T extends Record<string, unknown>>({
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-6 py-3 text-${column.align || 'left'} text-xs font-medium uppercase tracking-wider text-gray-500`}
+                  className={`px-6 py-3 ${getAlignClass(column.align)} text-xs font-medium uppercase tracking-wider text-gray-500`}
                 >
                   {column.header}
                 </th>
@@ -62,7 +72,7 @@ export default function Table<T extends Record<string, unknown>>({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className={`whitespace-nowrap px-6 py-4 text-${column.align || 'left'}`}
+                    className={`whitespace-nowrap px-6 py-4 ${getAlignClass(column.align)}`}
                   >
                     {column.render
                       ? column.render(item)
