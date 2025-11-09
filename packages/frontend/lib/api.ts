@@ -98,7 +98,7 @@ class ApiClient {
    * ログインAPI
    */
   async login(data: LoginFormData): Promise<AuthResponse> {
-    return this.request<AuthResponse>('/api/auth/login', {
+    return this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -108,7 +108,7 @@ class ApiClient {
    * パスワードリセットリクエストAPI
    */
   async requestPasswordReset(email: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/auth/reset-password', {
+    return this.request<{ message: string }>('/auth/password-reset-request', {
       method: 'POST',
       body: JSON.stringify({ email }),
     })

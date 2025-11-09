@@ -92,7 +92,7 @@ test.describe('ログインページ', () => {
   // 統合テストでは実際のバックエンドAPIが必要です
   test.skip('正しい認証情報でログインが成功する（モック）', async ({ page }) => {
     // APIリクエストをモック
-    await page.route('**/api/auth/login', async (route) => {
+    await page.route('**/auth/login', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -124,7 +124,7 @@ test.describe('ログインページ', () => {
     page,
   }) => {
     // APIリクエストをモック（エラーレスポンス）
-    await page.route('**/api/auth/login', async (route) => {
+    await page.route('**/auth/login', async (route) => {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -151,7 +151,7 @@ test.describe('ログインページ', () => {
   // 統合テストでは実際のバックエンドAPIが必要です
   test.skip('送信中はボタンが無効化される', async ({ page }) => {
     // APIリクエストを遅延させる
-    await page.route('**/api/auth/login', async (route) => {
+    await page.route('**/auth/login', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       await route.fulfill({
         status: 200,

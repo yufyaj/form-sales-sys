@@ -13,7 +13,7 @@ export async function loginAction(formData: LoginFormData) {
     // バックエンドAPIにログインリクエストを送信
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ export async function loginAction(formData: LoginFormData) {
     // httpOnlyクッキーとしてトークンを保存
     // これによりJavaScriptからアクセスできなくなり、XSS攻撃を防ぐ
     const cookieStore = await cookies()
-    cookieStore.set('authToken', data.token, {
+    cookieStore.set('authToken', data.access_token, {
       httpOnly: true, // JavaScriptからアクセス不可
       secure: process.env.NODE_ENV === 'production', // HTTPS環境でのみ送信
       sameSite: 'lax', // CSRF対策
@@ -44,20 +44,8 @@ export async function loginAction(formData: LoginFormData) {
       path: '/',
     })
 
-    // ユーザー情報をセッションクッキーに保存（httpOnly）
-    cookieStore.set('user', JSON.stringify(data.user), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    })
-
     return {
       success: true,
-      data: {
-        user: data.user,
-      },
     }
   } catch (error) {
     console.error('Login error:', error)
@@ -98,7 +86,7 @@ export async function requestPasswordResetAction(formData: ResetPasswordFormData
   try {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset-request`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -9,6 +9,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.app.api.dependencies import get_current_active_user
 from src.app.core.config import get_settings
 from src.app.core.database import get_db
 from src.application.schemas.auth_schemas import (
@@ -19,6 +20,7 @@ from src.application.schemas.auth_schemas import (
     UserRegisterRequest,
     UserResponse,
 )
+from src.domain.entities.user_entity import UserEntity
 from src.application.use_cases.auth_use_cases import (
     LoginUseCase,
     RegisterUserUseCase,
@@ -114,6 +116,23 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
         )
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="現在のユーザー情報取得",
+    description="JWTトークンから現在のユーザー情報を取得します。",
+)
+async def get_me(
+    current_user: UserEntity = Depends(get_current_active_user),
+) -> UserResponse:
+    """
+    現在のユーザー情報を取得
+
+    認証されたユーザーの情報を返します。
+    """
+    return UserResponse.model_validate(current_user)
 
 
 @router.post(

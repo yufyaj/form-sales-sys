@@ -42,7 +42,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     データベースセッションの依存性注入用関数
 
     FastAPIのDependsで使用します。
-    セッションの自動クローズとエラーハンドリングを行います。
+    セッションの自動クローズ、コミット、ロールバック、エラーハンドリングを行います。
 
     使用例:
         @app.get("/users")
@@ -55,7 +55,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
+            # 正常終了時はコミット
+            await session.commit()
         except Exception as e:
+            # エラー時はロールバック
+            await session.rollback()
             # ログに詳細を記録（将来的にロギング実装時）
             # logger.error(f"Database session error: {e}")
             # 本番環境では詳細なエラーメッセージを隠蔽する必要がある
