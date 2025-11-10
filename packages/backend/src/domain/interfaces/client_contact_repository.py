@@ -49,15 +49,24 @@ class IClientContactRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, client_contact_id: int) -> ClientContactEntity | None:
+    async def find_by_id(
+        self,
+        client_contact_id: int,
+        requesting_organization_id: int,
+    ) -> ClientContactEntity | None:
         """
-        IDで顧客担当者を検索
+        IDで顧客担当者を検索（マルチテナント対応）
 
         Args:
             client_contact_id: 顧客担当者ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientContactEntity | None: 見つかった場合は顧客担当者エンティティ、見つからない場合はNone
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
@@ -65,64 +74,97 @@ class IClientContactRepository(ABC):
     async def list_by_client_organization(
         self,
         client_organization_id: int,
+        requesting_organization_id: int,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
     ) -> list[ClientContactEntity]:
         """
-        顧客組織に属する担当者の一覧を取得
+        顧客組織に属する担当者の一覧を取得（マルチテナント対応）
 
         Args:
             client_organization_id: 顧客組織ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
             skip: スキップする件数（ページネーション用）
             limit: 取得する最大件数
             include_deleted: 削除済み担当者を含めるか
 
         Returns:
             list[ClientContactEntity]: 顧客担当者エンティティのリスト
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
     @abstractmethod
     async def find_primary_contact(
-        self, client_organization_id: int
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientContactEntity | None:
         """
-        顧客組織の主担当者を取得
+        顧客組織の主担当者を取得（マルチテナント対応）
 
         Args:
             client_organization_id: 顧客組織ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientContactEntity | None: 見つかった場合は主担当者エンティティ、見つからない場合はNone
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
     @abstractmethod
-    async def update(self, client_contact: ClientContactEntity) -> ClientContactEntity:
+    async def update(
+        self,
+        client_contact: ClientContactEntity,
+        requesting_organization_id: int,
+    ) -> ClientContactEntity:
         """
-        顧客担当者情報を更新
+        顧客担当者情報を更新（マルチテナント対応）
 
         Args:
             client_contact: 更新する顧客担当者エンティティ
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientContactEntity: 更新された顧客担当者エンティティ
 
         Raises:
-            ClientContactNotFoundError: 顧客担当者が見つからない場合
+            ClientContactNotFoundError: 顧客担当者が見つからない場合、
+                                       またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
     @abstractmethod
-    async def soft_delete(self, client_contact_id: int) -> None:
+    async def soft_delete(
+        self,
+        client_contact_id: int,
+        requesting_organization_id: int,
+    ) -> None:
         """
-        顧客担当者を論理削除（ソフトデリート）
+        顧客担当者を論理削除（ソフトデリート）（マルチテナント対応）
 
         Args:
             client_contact_id: 顧客担当者ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Raises:
-            ClientContactNotFoundError: 顧客担当者が見つからない場合
+            ClientContactNotFoundError: 顧客担当者が見つからない場合、
+                                       またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass

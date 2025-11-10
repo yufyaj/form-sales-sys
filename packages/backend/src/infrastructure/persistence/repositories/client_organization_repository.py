@@ -65,12 +65,22 @@ class ClientOrganizationRepository(IClientOrganizationRepository):
         return self._to_entity(client_org)
 
     async def find_by_id(
-        self, client_organization_id: int
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity | None:
-        """IDで顧客組織を検索"""
-        stmt = select(ClientOrganization).where(
-            ClientOrganization.id == client_organization_id,
-            ClientOrganization.deleted_at.is_(None),
+        """IDで顧客組織を検索（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientOrganization)
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientOrganization.id == client_organization_id,
+                ClientOrganization.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         client_org = result.scalar_one_or_none()
@@ -81,12 +91,22 @@ class ClientOrganizationRepository(IClientOrganizationRepository):
         return self._to_entity(client_org)
 
     async def find_by_organization_id(
-        self, organization_id: int
+        self,
+        organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity | None:
-        """組織IDで顧客組織を検索"""
-        stmt = select(ClientOrganization).where(
-            ClientOrganization.organization_id == organization_id,
-            ClientOrganization.deleted_at.is_(None),
+        """組織IDで顧客組織を検索（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientOrganization)
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientOrganization.organization_id == organization_id,
+                ClientOrganization.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         client_org = result.scalar_one_or_none()
@@ -130,12 +150,22 @@ class ClientOrganizationRepository(IClientOrganizationRepository):
         return [self._to_entity(co) for co in client_orgs]
 
     async def update(
-        self, client_organization: ClientOrganizationEntity
+        self,
+        client_organization: ClientOrganizationEntity,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity:
-        """顧客組織情報を更新"""
-        stmt = select(ClientOrganization).where(
-            ClientOrganization.id == client_organization.id,
-            ClientOrganization.deleted_at.is_(None),
+        """顧客組織情報を更新（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientOrganization)
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientOrganization.id == client_organization.id,
+                ClientOrganization.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         db_client_org = result.scalar_one_or_none()
@@ -157,11 +187,23 @@ class ClientOrganizationRepository(IClientOrganizationRepository):
 
         return self._to_entity(db_client_org)
 
-    async def soft_delete(self, client_organization_id: int) -> None:
-        """顧客組織を論理削除（ソフトデリート）"""
-        stmt = select(ClientOrganization).where(
-            ClientOrganization.id == client_organization_id,
-            ClientOrganization.deleted_at.is_(None),
+    async def soft_delete(
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
+    ) -> None:
+        """顧客組織を論理削除（ソフトデリート）（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientOrganization)
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientOrganization.id == client_organization_id,
+                ClientOrganization.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         client_org = result.scalar_one_or_none()

@@ -64,4 +64,4 @@ class ClientOrganization(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<ClientOrganization(id={self.id}, organization_id={self.organization_id}, industry={self.industry})>"
+        return f"<ClientOrganization(id={self.id}, organization_id={self.organization_id})>"

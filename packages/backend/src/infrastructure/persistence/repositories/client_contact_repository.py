@@ -13,6 +13,10 @@ from src.domain.entities.client_contact_entity import ClientContactEntity
 from src.domain.exceptions import ClientContactNotFoundError
 from src.domain.interfaces.client_contact_repository import IClientContactRepository
 from src.infrastructure.persistence.models.client_contact import ClientContact
+from src.infrastructure.persistence.models.client_organization import (
+    ClientOrganization,
+)
+from src.infrastructure.persistence.models.organization import Organization
 
 
 class ClientContactRepository(IClientContactRepository):
@@ -61,12 +65,26 @@ class ClientContactRepository(IClientContactRepository):
         return self._to_entity(contact)
 
     async def find_by_id(
-        self, client_contact_id: int
+        self,
+        client_contact_id: int,
+        requesting_organization_id: int,
     ) -> ClientContactEntity | None:
-        """IDで顧客担当者を検索"""
-        stmt = select(ClientContact).where(
-            ClientContact.id == client_contact_id,
-            ClientContact.deleted_at.is_(None),
+        """IDで顧客担当者を検索（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientContact)
+            .join(
+                ClientOrganization,
+                ClientContact.client_organization_id == ClientOrganization.id,
+            )
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientContact.id == client_contact_id,
+                ClientContact.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         contact = result.scalar_one_or_none()
@@ -79,19 +97,29 @@ class ClientContactRepository(IClientContactRepository):
     async def list_by_client_organization(
         self,
         client_organization_id: int,
+        requesting_organization_id: int,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
     ) -> list[ClientContactEntity]:
-        """顧客組織に属する担当者の一覧を取得"""
+        """顧客組織に属する担当者の一覧を取得（マルチテナント対応・IDOR脆弱性対策）"""
         conditions = [
             ClientContact.client_organization_id == client_organization_id,
+            Organization.parent_organization_id == requesting_organization_id,
         ]
         if not include_deleted:
             conditions.append(ClientContact.deleted_at.is_(None))
 
         stmt = (
             select(ClientContact)
+            .join(
+                ClientOrganization,
+                ClientContact.client_organization_id == ClientOrganization.id,
+            )
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
             .where(and_(*conditions))
             .offset(skip)
             .limit(limit)
@@ -104,13 +132,27 @@ class ClientContactRepository(IClientContactRepository):
         return [self._to_entity(c) for c in contacts]
 
     async def find_primary_contact(
-        self, client_organization_id: int
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientContactEntity | None:
-        """顧客組織の主担当者を取得"""
-        stmt = select(ClientContact).where(
-            ClientContact.client_organization_id == client_organization_id,
-            ClientContact.is_primary.is_(True),
-            ClientContact.deleted_at.is_(None),
+        """顧客組織の主担当者を取得（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientContact)
+            .join(
+                ClientOrganization,
+                ClientContact.client_organization_id == ClientOrganization.id,
+            )
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientContact.client_organization_id == client_organization_id,
+                ClientContact.is_primary.is_(True),
+                ClientContact.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         contact = result.scalar_one_or_none()
@@ -121,12 +163,26 @@ class ClientContactRepository(IClientContactRepository):
         return self._to_entity(contact)
 
     async def update(
-        self, client_contact: ClientContactEntity
+        self,
+        client_contact: ClientContactEntity,
+        requesting_organization_id: int,
     ) -> ClientContactEntity:
-        """顧客担当者情報を更新"""
-        stmt = select(ClientContact).where(
-            ClientContact.id == client_contact.id,
-            ClientContact.deleted_at.is_(None),
+        """顧客担当者情報を更新（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientContact)
+            .join(
+                ClientOrganization,
+                ClientContact.client_organization_id == ClientOrganization.id,
+            )
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientContact.id == client_contact.id,
+                ClientContact.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         db_contact = result.scalar_one_or_none()
@@ -149,11 +205,27 @@ class ClientContactRepository(IClientContactRepository):
 
         return self._to_entity(db_contact)
 
-    async def soft_delete(self, client_contact_id: int) -> None:
-        """顧客担当者を論理削除（ソフトデリート）"""
-        stmt = select(ClientContact).where(
-            ClientContact.id == client_contact_id,
-            ClientContact.deleted_at.is_(None),
+    async def soft_delete(
+        self,
+        client_contact_id: int,
+        requesting_organization_id: int,
+    ) -> None:
+        """顧客担当者を論理削除（ソフトデリート）（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(ClientContact)
+            .join(
+                ClientOrganization,
+                ClientContact.client_organization_id == ClientOrganization.id,
+            )
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientContact.id == client_contact_id,
+                ClientContact.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
         )
         result = await self._session.execute(stmt)
         contact = result.scalar_one_or_none()

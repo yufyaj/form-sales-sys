@@ -107,6 +107,7 @@ class TestClientOrganizationRepositoryFind:
     async def test_find_by_id_success(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_base_organization: Organization,
     ) -> None:
         """正常系：IDで顧客組織を検索できる"""
@@ -119,7 +120,9 @@ class TestClientOrganizationRepositoryFind:
         )
 
         # Act
-        client_org = await repo.find_by_id(created.id)
+        client_org = await repo.find_by_id(
+            created.id, sales_support_organization.id
+        )
 
         # Assert
         assert client_org is not None
@@ -127,13 +130,15 @@ class TestClientOrganizationRepositoryFind:
         assert client_org.industry == "製造業"
         assert client_org.employee_count == 1000
 
-    async def test_find_by_id_not_found(self, db_session: AsyncSession) -> None:
+    async def test_find_by_id_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
         """正常系：存在しないIDはNoneを返す"""
         # Arrange
         repo = ClientOrganizationRepository(db_session)
 
         # Act
-        client_org = await repo.find_by_id(999999)
+        client_org = await repo.find_by_id(999999, sales_support_organization.id)
 
         # Assert
         assert client_org is None
@@ -141,6 +146,7 @@ class TestClientOrganizationRepositoryFind:
     async def test_find_by_organization_id_success(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_base_organization: Organization,
     ) -> None:
         """正常系：組織IDで顧客組織を検索できる"""
@@ -152,7 +158,9 @@ class TestClientOrganizationRepositoryFind:
         )
 
         # Act
-        client_org = await repo.find_by_organization_id(client_base_organization.id)
+        client_org = await repo.find_by_organization_id(
+            client_base_organization.id, sales_support_organization.id
+        )
 
         # Assert
         assert client_org is not None
@@ -198,6 +206,7 @@ class TestClientOrganizationRepositoryUpdate:
     async def test_update_client_organization_success(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_base_organization: Organization,
     ) -> None:
         """正常系：顧客組織を更新できる"""
@@ -213,7 +222,7 @@ class TestClientOrganizationRepositoryUpdate:
         client_org.industry = "製造業"
         client_org.employee_count = 1000
         client_org.notes = "業種変更"
-        updated = await repo.update(client_org)
+        updated = await repo.update(client_org, sales_support_organization.id)
 
         # Assert
         assert updated.id == client_org.id
@@ -222,7 +231,7 @@ class TestClientOrganizationRepositoryUpdate:
         assert updated.notes == "業種変更"
 
     async def test_update_client_organization_not_found(
-        self, db_session: AsyncSession
+        self, db_session: AsyncSession, sales_support_organization: Organization
     ) -> None:
         """異常系：存在しない顧客組織の更新でエラー"""
         # Arrange
@@ -239,7 +248,7 @@ class TestClientOrganizationRepositoryUpdate:
 
         # Act & Assert
         with pytest.raises(ClientOrganizationNotFoundError):
-            await repo.update(fake_entity)
+            await repo.update(fake_entity, sales_support_organization.id)
 
 
 class TestClientOrganizationRepositorySoftDelete:
@@ -248,6 +257,7 @@ class TestClientOrganizationRepositorySoftDelete:
     async def test_soft_delete_success(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_base_organization: Organization,
     ) -> None:
         """正常系：顧客組織を論理削除できる"""
@@ -259,17 +269,19 @@ class TestClientOrganizationRepositorySoftDelete:
         )
 
         # Act
-        await repo.soft_delete(client_org.id)
+        await repo.soft_delete(client_org.id, sales_support_organization.id)
 
         # Assert
-        deleted = await repo.find_by_id(client_org.id)
+        deleted = await repo.find_by_id(client_org.id, sales_support_organization.id)
         assert deleted is None
 
-    async def test_soft_delete_not_found(self, db_session: AsyncSession) -> None:
+    async def test_soft_delete_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
         """異常系：存在しない顧客組織の論理削除でエラー"""
         # Arrange
         repo = ClientOrganizationRepository(db_session)
 
         # Act & Assert
         with pytest.raises(ClientOrganizationNotFoundError):
-            await repo.soft_delete(999999)
+            await repo.soft_delete(999999, sales_support_organization.id)

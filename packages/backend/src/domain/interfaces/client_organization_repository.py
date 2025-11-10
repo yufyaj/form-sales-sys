@@ -48,31 +48,45 @@ class IClientOrganizationRepository(ABC):
 
     @abstractmethod
     async def find_by_id(
-        self, client_organization_id: int
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity | None:
         """
-        IDで顧客組織を検索
+        IDで顧客組織を検索（マルチテナント対応）
 
         Args:
             client_organization_id: 顧客組織ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientOrganizationEntity | None: 見つかった場合は顧客組織エンティティ、見つからない場合はNone
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
     @abstractmethod
     async def find_by_organization_id(
-        self, organization_id: int
+        self,
+        organization_id: int,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity | None:
         """
-        組織IDで顧客組織を検索
+        組織IDで顧客組織を検索（マルチテナント対応）
 
         Args:
             organization_id: 組織ID（organizations.id）
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientOrganizationEntity | None: 見つかった場合は顧客組織エンティティ、見つからない場合はNone
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
@@ -100,31 +114,49 @@ class IClientOrganizationRepository(ABC):
 
     @abstractmethod
     async def update(
-        self, client_organization: ClientOrganizationEntity
+        self,
+        client_organization: ClientOrganizationEntity,
+        requesting_organization_id: int,
     ) -> ClientOrganizationEntity:
         """
-        顧客組織情報を更新
+        顧客組織情報を更新（マルチテナント対応）
 
         Args:
             client_organization: 更新する顧客組織エンティティ
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Returns:
             ClientOrganizationEntity: 更新された顧客組織エンティティ
 
         Raises:
-            ClientOrganizationNotFoundError: 顧客組織が見つからない場合
+            ClientOrganizationNotFoundError: 顧客組織が見つからない場合、
+                                             またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
     @abstractmethod
-    async def soft_delete(self, client_organization_id: int) -> None:
+    async def soft_delete(
+        self,
+        client_organization_id: int,
+        requesting_organization_id: int,
+    ) -> None:
         """
-        顧客組織を論理削除（ソフトデリート）
+        顧客組織を論理削除（ソフトデリート）（マルチテナント対応）
 
         Args:
             client_organization_id: 顧客組織ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
 
         Raises:
-            ClientOrganizationNotFoundError: 顧客組織が見つからない場合
+            ClientOrganizationNotFoundError: 顧客組織が見つからない場合、
+                                             またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass

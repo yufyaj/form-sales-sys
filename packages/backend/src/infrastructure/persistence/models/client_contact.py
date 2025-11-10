@@ -59,4 +59,4 @@ class ClientContact(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<ClientContact(id={self.id}, full_name={self.full_name}, is_primary={self.is_primary})>"
+        return f"<ClientContact(id={self.id}, is_primary={self.is_primary})>"

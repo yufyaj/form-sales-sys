@@ -120,7 +120,10 @@ class TestClientContactRepositoryFind:
     """顧客担当者検索のテスト"""
 
     async def test_find_by_id_success(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：IDで顧客担当者を検索できる"""
         # Arrange
@@ -132,7 +135,7 @@ class TestClientContactRepositoryFind:
         )
 
         # Act
-        contact = await repo.find_by_id(created.id)
+        contact = await repo.find_by_id(created.id, sales_support_organization.id)
 
         # Assert
         assert contact is not None
@@ -140,19 +143,24 @@ class TestClientContactRepositoryFind:
         assert contact.full_name == "田中一郎"
         assert contact.email == "tanaka@example.com"
 
-    async def test_find_by_id_not_found(self, db_session: AsyncSession) -> None:
+    async def test_find_by_id_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
         """正常系：存在しないIDはNoneを返す"""
         # Arrange
         repo = ClientContactRepository(db_session)
 
         # Act
-        contact = await repo.find_by_id(999999)
+        contact = await repo.find_by_id(999999, sales_support_organization.id)
 
         # Assert
         assert contact is None
 
     async def test_list_by_client_organization_success(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：顧客組織IDで担当者一覧を取得できる"""
         # Arrange
@@ -167,14 +175,19 @@ class TestClientContactRepositoryFind:
             )
 
         # Act
-        contacts = await repo.list_by_client_organization(test_client_organization.id)
+        contacts = await repo.list_by_client_organization(
+            test_client_organization.id, sales_support_organization.id
+        )
 
         # Assert
         assert len(contacts) == 3
         assert all(c.full_name in ["担当者1", "担当者2", "担当者3"] for c in contacts)
 
     async def test_find_primary_contact_success(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：主担当者を取得できる"""
         # Arrange
@@ -193,7 +206,9 @@ class TestClientContactRepositoryFind:
         )
 
         # Act
-        found = await repo.find_primary_contact(test_client_organization.id)
+        found = await repo.find_primary_contact(
+            test_client_organization.id, sales_support_organization.id
+        )
 
         # Assert
         assert found is not None
@@ -202,7 +217,10 @@ class TestClientContactRepositoryFind:
         assert found.is_primary is True
 
     async def test_find_primary_contact_not_found(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：主担当者が存在しない場合はNoneを返す"""
         # Arrange
@@ -216,7 +234,9 @@ class TestClientContactRepositoryFind:
         )
 
         # Act
-        found = await repo.find_primary_contact(test_client_organization.id)
+        found = await repo.find_primary_contact(
+            test_client_organization.id, sales_support_organization.id
+        )
 
         # Assert
         assert found is None
@@ -226,7 +246,10 @@ class TestClientContactRepositoryUpdate:
     """顧客担当者更新のテスト"""
 
     async def test_update_client_contact_success(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：顧客担当者を更新できる"""
         # Arrange
@@ -242,7 +265,7 @@ class TestClientContactRepositoryUpdate:
         contact.position = "部長"
         contact.email = "yamada.updated@example.com"
         contact.notes = "昇進しました"
-        updated = await repo.update(contact)
+        updated = await repo.update(contact, sales_support_organization.id)
 
         # Assert
         assert updated.id == contact.id
@@ -250,7 +273,9 @@ class TestClientContactRepositoryUpdate:
         assert updated.email == "yamada.updated@example.com"
         assert updated.notes == "昇進しました"
 
-    async def test_update_client_contact_not_found(self, db_session: AsyncSession) -> None:
+    async def test_update_client_contact_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
         """異常系：存在しない顧客担当者の更新でエラー"""
         # Arrange
         repo = ClientContactRepository(db_session)
@@ -265,14 +290,17 @@ class TestClientContactRepositoryUpdate:
 
         # Act & Assert
         with pytest.raises(ClientContactNotFoundError):
-            await repo.update(fake_entity)
+            await repo.update(fake_entity, sales_support_organization.id)
 
 
 class TestClientContactRepositorySoftDelete:
     """顧客担当者論理削除のテスト"""
 
     async def test_soft_delete_success(
-        self, db_session: AsyncSession, test_client_organization
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        test_client_organization,
     ) -> None:
         """正常系：顧客担当者を論理削除できる"""
         # Arrange
@@ -283,17 +311,19 @@ class TestClientContactRepositorySoftDelete:
         )
 
         # Act
-        await repo.soft_delete(contact.id)
+        await repo.soft_delete(contact.id, sales_support_organization.id)
 
         # Assert
-        deleted = await repo.find_by_id(contact.id)
+        deleted = await repo.find_by_id(contact.id, sales_support_organization.id)
         assert deleted is None
 
-    async def test_soft_delete_not_found(self, db_session: AsyncSession) -> None:
+    async def test_soft_delete_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
         """異常系：存在しない顧客担当者の論理削除でエラー"""
         # Arrange
         repo = ClientContactRepository(db_session)
 
         # Act & Assert
         with pytest.raises(ClientContactNotFoundError):
-            await repo.soft_delete(999999)
+            await repo.soft_delete(999999, sales_support_organization.id)
