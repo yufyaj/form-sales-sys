@@ -207,25 +207,21 @@ export default function CustomerDashboard() {
           title="依頼中プロジェクト"
           value={stats.totalProjects}
           description="全プロジェクト"
-          colorClass="text-blue-600"
         />
         <StatCard
           title="進行中"
           value={stats.activeProjects}
           description="現在進行中"
-          colorClass="text-green-600"
         />
         <StatCard
           title="完了"
           value={stats.completedProjects}
           description="完了したプロジェクト"
-          colorClass="text-purple-600"
         />
         <StatCard
           title="総送信数"
           value={stats.totalSubmissions.toLocaleString()}
           description="全プロジェクト合計"
-          colorClass="text-orange-600"
         />
       </div>
 

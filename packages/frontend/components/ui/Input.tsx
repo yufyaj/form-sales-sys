@@ -1,39 +1,48 @@
-import { InputHTMLAttributes, forwardRef } from 'react'
+import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
 }
 
 /**
- * 入力フィールドコンポーネント
- * ラベルとエラーメッセージ表示をサポート
+ * モダンなインプットコンポーネント
+ *
+ * @example
+ * ```tsx
+ * <Input type="email" placeholder="メールアドレス" />
+ * <Input label="パスワード" type="password" error="パスワードが正しくありません" />
+ * ```
  */
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, id, ...props }, ref) => {
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, label, error, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-')
 
     return (
-      <div className="w-full">
+      <div className="w-full space-y-2">
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-2 block text-sm font-medium text-gray-700"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             {label}
           </label>
         )}
         <input
+          type={type}
           id={inputId}
-          ref={ref}
           className={cn(
-            'block w-full rounded-md border-gray-300 shadow-sm transition-colors',
-            'focus:border-primary-500 focus:ring-primary-500',
-            'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+            'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+            'file:border-0 file:bg-transparent file:text-sm file:font-medium',
+            'placeholder:text-muted-foreground',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            'transition-all duration-base',
+            error && 'border-destructive focus-visible:ring-destructive',
             className
           )}
+          ref={ref}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
@@ -41,7 +50,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <p
             id={`${inputId}-error`}
-            className="mt-1 text-sm text-red-600"
+            className="text-sm font-medium text-destructive animate-in slide-in-from-top-1"
             role="alert"
           >
             {error}
@@ -55,3 +64,4 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = 'Input'
 
 export default Input
+export { Input }

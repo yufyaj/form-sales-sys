@@ -286,25 +286,21 @@ export default function WorkerDashboard() {
           title="割り当て中"
           value={stats.pending}
           description="未着手のタスク"
-          colorClass="text-gray-600"
         />
         <StatCard
           title="作業中"
           value={stats.inProgress}
           description="現在進行中"
-          colorClass="text-blue-600"
         />
         <StatCard
           title="完了"
           value={stats.completed}
           description="完了したタスク"
-          colorClass="text-green-600"
         />
         <StatCard
           title="処理進捗"
           value={`${stats.totalProcessedRecords} / ${stats.totalProcessedRecords + stats.totalRecordsToProcess}`}
           description="総処理レコード数"
-          colorClass="text-purple-600"
         />
       </div>
 

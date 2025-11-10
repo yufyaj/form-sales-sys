@@ -212,25 +212,21 @@ export default function SalesCompanyDashboard() {
           title="総プロジェクト数"
           value={stats.totalProjects}
           description="全プロジェクト"
-          colorClass="text-blue-600"
         />
         <StatCard
           title="進行中"
           value={stats.activeProjects}
           description="アクティブなプロジェクト"
-          colorClass="text-green-600"
         />
         <StatCard
           title="完了"
           value={stats.completedProjects}
           description="完了したプロジェクト"
-          colorClass="text-purple-600"
         />
         <StatCard
           title="総送信数"
           value={stats.totalSubmissions.toLocaleString()}
           description="全プロジェクト合計"
-          colorClass="text-orange-600"
         />
       </div>
 

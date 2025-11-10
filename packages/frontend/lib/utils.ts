@@ -1,10 +1,12 @@
 import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 /**
  * Tailwind CSSのクラス名を結合するユーティリティ関数
+ * clsxとtailwind-mergeを組み合わせて使用し、重複するTailwindクラスを適切にマージ
  */
 export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs)
+  return twMerge(clsx(inputs))
 }
 
 /**
