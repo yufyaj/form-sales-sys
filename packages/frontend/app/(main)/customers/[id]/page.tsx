@@ -13,6 +13,7 @@ import CustomerContactList from '@/components/features/customer/CustomerContactL
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { get, put, post, del } from '@/lib/api'
+import { isSafeUrl } from '@/lib/utils'
 
 /**
  * 顧客詳細ページ
@@ -22,7 +23,7 @@ import { get, put, post, del } from '@/lib/api'
 export default function CustomerDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const customerId = params.id as string
+  const customerIdStr = params.id as string
 
   const [customer, setCustomer] = useState<ClientOrganizationDetail | null>(
     null
@@ -31,11 +32,18 @@ export default function CustomerDetailPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [error, setError] = useState<string>('')
 
+  // 顧客IDの検証
+  const customerId = parseInt(customerIdStr, 10)
+  const isValidId = !isNaN(customerId) && customerId > 0
+
   useEffect(() => {
-    if (customerId) {
-      fetchCustomer()
+    if (!isValidId) {
+      setError('無効な顧客IDです')
+      setIsLoading(false)
+      return
     }
-  }, [customerId])
+    fetchCustomer()
+  }, [customerIdStr, isValidId])
 
   const fetchCustomer = async () => {
     setIsLoading(true)
@@ -47,7 +55,7 @@ export default function CustomerDetailPage() {
 
       // 仮のモックデータ（開発中）
       const mockData: ClientOrganizationDetail = {
-        id: parseInt(customerId),
+        id: customerId,
         organizationId: 101,
         organizationName: '株式会社サンプル',
         industry: '製造業',
@@ -63,7 +71,7 @@ export default function CustomerDetailPage() {
         contacts: [
           {
             id: 1,
-            clientOrganizationId: parseInt(customerId),
+            clientOrganizationId: customerId,
             fullName: '田中 一郎',
             department: '営業部',
             position: '部長',
@@ -78,7 +86,7 @@ export default function CustomerDetailPage() {
           },
           {
             id: 2,
-            clientOrganizationId: parseInt(customerId),
+            clientOrganizationId: customerId,
             fullName: '鈴木 花子',
             department: '総務部',
             position: '課長',
@@ -296,7 +304,7 @@ export default function CustomerDetailPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Webサイト</p>
-                {customer.website ? (
+                {customer.website && isSafeUrl(customer.website) ? (
                   <a
                     href={customer.website}
                     target="_blank"
@@ -305,6 +313,10 @@ export default function CustomerDetailPage() {
                   >
                     {customer.website}
                   </a>
+                ) : customer.website ? (
+                  <p className="font-medium text-red-600" title="無効なURL形式です">
+                    無効なURL
+                  </p>
                 ) : (
                   <p className="font-medium text-gray-900">-</p>
                 )}

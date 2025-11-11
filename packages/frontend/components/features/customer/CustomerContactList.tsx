@@ -12,6 +12,7 @@ import {
 } from '@/lib/validations/customer'
 import type { ClientContact } from '@/types/customer'
 import { staggerContainer, staggerItem } from '@/lib/motion'
+import { sanitizeEmail } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
@@ -122,8 +123,8 @@ export default function CustomerContactList({
     }
   }
 
-  const MotionForm = motion.form as any
-  const MotionDiv = motion.div as any
+  const MotionForm = motion.form
+  const MotionDiv = motion.div
 
   return (
     <div className="space-y-4">
@@ -376,7 +377,7 @@ export default function CustomerContactList({
                       {contact.email && (
                         <p>
                           <a
-                            href={`mailto:${contact.email}`}
+                            href={`mailto:${sanitizeEmail(contact.email)}`}
                             className="text-blue-600 hover:underline"
                           >
                             {contact.email}

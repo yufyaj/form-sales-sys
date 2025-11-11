@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { ClientOrganization } from '@/types/customer'
+import { useDebounce } from '@/hooks/useDebounce'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import { isSafeUrl } from '@/lib/utils'
 
 interface CustomerListProps {
   customers: ClientOrganization[]
@@ -25,6 +27,8 @@ export default function CustomerList({
   isLoading = false,
 }: CustomerListProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  // デバウンス処理で検索パフォーマンスを最適化（300ms遅延）
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   // 年商を日本円形式でフォーマット
   const formatRevenue = (revenue: number | null): string => {
@@ -38,16 +42,16 @@ export default function CustomerList({
     return `${count.toLocaleString('ja-JP')}名`
   }
 
-  // 検索フィルタリング
-  const filteredCustomers = customers.filter((customer) => {
-    if (!searchTerm) return true
-    const searchLower = searchTerm.toLowerCase()
-    return (
+  // 検索フィルタリング（メモ化によるパフォーマンス最適化）
+  const filteredCustomers = useMemo(() => {
+    if (!debouncedSearchTerm) return customers
+    const searchLower = debouncedSearchTerm.toLowerCase()
+    return customers.filter((customer) =>
       customer.organizationName.toLowerCase().includes(searchLower) ||
       customer.industry?.toLowerCase().includes(searchLower) ||
       customer.salesPerson?.toLowerCase().includes(searchLower)
     )
-  })
+  }, [customers, debouncedSearchTerm])
 
   // テーブルカラム定義
   const columns = [
@@ -98,7 +102,7 @@ export default function CustomerList({
       key: 'website',
       header: 'Webサイト',
       render: (customer: ClientOrganization) =>
-        customer.website ? (
+        customer.website && isSafeUrl(customer.website) ? (
           <a
             href={customer.website}
             target="_blank"
@@ -108,6 +112,10 @@ export default function CustomerList({
           >
             リンク
           </a>
+        ) : customer.website ? (
+          <span className="text-sm text-red-600" title="無効なURL形式です">
+            無効なURL
+          </span>
         ) : (
           <span className="text-sm text-gray-400">-</span>
         ),

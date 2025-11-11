@@ -82,8 +82,8 @@ export default function CustomerForm({
     }
   }
 
-  const MotionForm = motion.form as any
-  const MotionDiv = motion.div as any
+  const MotionForm = motion.form
+  const MotionDiv = motion.div
 
   return (
     <MotionForm

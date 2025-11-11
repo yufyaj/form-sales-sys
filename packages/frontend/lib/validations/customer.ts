@@ -50,7 +50,11 @@ export const createClientOrganizationSchema = z.object({
     .max(255, '担当営業名は255文字以内で入力してください')
     .optional()
     .nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z
+    .string()
+    .max(5000, '備考は5000文字以内で入力してください')
+    .optional()
+    .nullable(),
 })
 
 /**
@@ -93,7 +97,11 @@ export const updateClientOrganizationSchema = z.object({
     .max(255, '担当営業名は255文字以内で入力してください')
     .optional()
     .nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z
+    .string()
+    .max(5000, '備考は5000文字以内で入力してください')
+    .optional()
+    .nullable(),
 })
 
 /**
@@ -130,8 +138,12 @@ export const createClientContactSchema = z.object({
     .string()
     .max(50, '電話番号は50文字以内で入力してください')
     .regex(
-      /^[\d\-+() ]*$/,
+      /^$|^[\d\-+() ]+$/,
       '電話番号は数字、ハイフン、括弧、プラス記号のみ使用できます'
+    )
+    .refine(
+      (val) => !val || val.replace(/[\s\-+()]/g, '').length > 0,
+      '有効な電話番号を入力してください'
     )
     .optional()
     .or(z.literal(''))
@@ -140,14 +152,22 @@ export const createClientContactSchema = z.object({
     .string()
     .max(50, '携帯電話番号は50文字以内で入力してください')
     .regex(
-      /^[\d\-+() ]*$/,
+      /^$|^[\d\-+() ]+$/,
       '携帯電話番号は数字、ハイフン、括弧、プラス記号のみ使用できます'
+    )
+    .refine(
+      (val) => !val || val.replace(/[\s\-+()]/g, '').length > 0,
+      '有効な携帯電話番号を入力してください'
     )
     .optional()
     .or(z.literal(''))
     .nullable(),
   isPrimary: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
+  notes: z
+    .string()
+    .max(5000, '備考は5000文字以内で入力してください')
+    .optional()
+    .nullable(),
 })
 
 /**
@@ -181,8 +201,12 @@ export const updateClientContactSchema = z.object({
     .string()
     .max(50, '電話番号は50文字以内で入力してください')
     .regex(
-      /^[\d\-+() ]*$/,
+      /^$|^[\d\-+() ]+$/,
       '電話番号は数字、ハイフン、括弧、プラス記号のみ使用できます'
+    )
+    .refine(
+      (val) => !val || val.replace(/[\s\-+()]/g, '').length > 0,
+      '有効な電話番号を入力してください'
     )
     .optional()
     .or(z.literal(''))
@@ -191,14 +215,22 @@ export const updateClientContactSchema = z.object({
     .string()
     .max(50, '携帯電話番号は50文字以内で入力してください')
     .regex(
-      /^[\d\-+() ]*$/,
+      /^$|^[\d\-+() ]+$/,
       '携帯電話番号は数字、ハイフン、括弧、プラス記号のみ使用できます'
+    )
+    .refine(
+      (val) => !val || val.replace(/[\s\-+()]/g, '').length > 0,
+      '有効な携帯電話番号を入力してください'
     )
     .optional()
     .or(z.literal(''))
     .nullable(),
   isPrimary: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
+  notes: z
+    .string()
+    .max(5000, '備考は5000文字以内で入力してください')
+    .optional()
+    .nullable(),
 })
 
 /**
