@@ -165,3 +165,5 @@ InvalidCredentialsException = InvalidCredentialsError
 InactiveUserException = InactiveUserError
 OrganizationNotFoundException = OrganizationNotFoundError
 RoleNotFoundException = RoleNotFoundError
+ClientOrganizationNotFoundException = ClientOrganizationNotFoundError
+ClientContactNotFoundException = ClientContactNotFoundError
