@@ -134,6 +134,20 @@ class PermissionNotFoundError(DomainException):
             super().__init__("Permission not found")
 
 
+class ClientOrganizationNotFoundError(DomainException):
+    """顧客組織が見つからない場合の例外"""
+
+    def __init__(self, client_organization_id: int) -> None:
+        super().__init__(f"Client organization with id {client_organization_id} not found")
+
+
+class ClientContactNotFoundError(DomainException):
+    """顧客担当者が見つからない場合の例外"""
+
+    def __init__(self, client_contact_id: int) -> None:
+        super().__init__(f"Client contact with id {client_contact_id} not found")
+
+
 class BusinessRuleViolationException(DomainException):
     """ビジネスルール違反の基底例外"""
 
