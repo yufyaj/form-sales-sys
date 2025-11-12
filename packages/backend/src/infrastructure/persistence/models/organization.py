@@ -62,6 +62,11 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    sales_company_staff: Mapped[list["SalesCompanyStaff"]] = relationship(
+        "SalesCompanyStaff",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Organization(id={self.id}, name={self.name}, type={self.type})>"

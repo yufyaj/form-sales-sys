@@ -9,6 +9,7 @@ from .client_contact import ClientContact
 from .client_organization import ClientOrganization
 from .organization import Organization, OrganizationType
 from .role import Permission, Role
+from .sales_company_staff import SalesCompanyStaff
 from .user import User
 from .user_role import RolePermission, UserRole
 
@@ -27,4 +28,5 @@ __all__ = [
     "RolePermission",
     "ClientOrganization",
     "ClientContact",
+    "SalesCompanyStaff",
 ]

@@ -53,6 +53,9 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     user_roles: Mapped[list["UserRole"]] = relationship(
         "UserRole", back_populates="user", cascade="all, delete-orphan"
     )
+    sales_company_staff: Mapped["SalesCompanyStaff"] = relationship(
+        "SalesCompanyStaff", back_populates="user", uselist=False
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, organization_id={self.organization_id})>"
