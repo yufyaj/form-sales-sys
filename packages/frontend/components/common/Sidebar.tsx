@@ -69,8 +69,8 @@ export default function Sidebar({
       roles: ['sales_company'],
     },
     {
-      label: 'ユーザー管理',
-      href: '/users',
+      label: '担当者管理',
+      href: '/dashboard/sales-company/staff',
       icon: Users,
       roles: ['sales_company'], // 営業支援会社のみ
     },
