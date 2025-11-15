@@ -76,3 +76,44 @@ class ProjectEntity:
         if self.estimated_budget is None or self.actual_budget is None:
             return None
         return self.actual_budget - self.estimated_budget
+
+    def validate_date_range(self) -> None:
+        """
+        日付範囲の妥当性を検証
+
+        Raises:
+            InvalidDateRangeError: 開始日が終了日より後の場合
+        """
+        if self.start_date is not None and self.end_date is not None:
+            if self.start_date > self.end_date:
+                from src.domain.exceptions import InvalidDateRangeError
+
+                raise InvalidDateRangeError(
+                    str(self.start_date), str(self.end_date)
+                )
+
+    def validate_budgets(self) -> None:
+        """
+        予算値の妥当性を検証
+
+        Raises:
+            InvalidBudgetError: 予算値が負の場合
+        """
+        from src.domain.exceptions import InvalidBudgetError
+
+        if self.estimated_budget is not None and self.estimated_budget < 0:
+            raise InvalidBudgetError("見積予算", self.estimated_budget)
+
+        if self.actual_budget is not None and self.actual_budget < 0:
+            raise InvalidBudgetError("実績予算", self.actual_budget)
+
+    def validate(self) -> None:
+        """
+        プロジェクトエンティティの全バリデーションを実行
+
+        Raises:
+            InvalidDateRangeError: 日付範囲が不正な場合
+            InvalidBudgetError: 予算値が不正な場合
+        """
+        self.validate_date_range()
+        self.validate_budgets()

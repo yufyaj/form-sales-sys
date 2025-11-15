@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.entities.project_entity import ProjectPriority, ProjectStatus
 from src.domain.exceptions import (
     ClientOrganizationNotFoundError,
+    InvalidBudgetError,
+    InvalidDateRangeError,
     ProjectNotFoundError,
     UserNotFoundError,
 )
@@ -567,3 +569,112 @@ class TestProjectRepositorySoftDelete:
         # Act & Assert
         with pytest.raises(ProjectNotFoundError):
             await repo.soft_delete(999999, sales_support_organization.id)
+
+
+class TestProjectRepositoryValidation:
+    """プロジェクトバリデーションのテスト"""
+
+    async def test_create_project_invalid_date_range(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：開始日が終了日より後の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(InvalidDateRangeError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="不正な日付範囲プロジェクト",
+                status=ProjectStatus.PLANNING,
+                start_date=date(2025, 12, 31),
+                end_date=date(2025, 1, 1),
+            )
+
+    async def test_create_project_negative_estimated_budget(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：見積予算が負の値の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(InvalidBudgetError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="負の見積予算プロジェクト",
+                status=ProjectStatus.PLANNING,
+                estimated_budget=-1000000,
+            )
+
+    async def test_create_project_negative_actual_budget(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：実績予算が負の値の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(InvalidBudgetError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="負の実績予算プロジェクト",
+                status=ProjectStatus.PLANNING,
+                actual_budget=-500000,
+            )
+
+    async def test_update_project_invalid_date_range(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：更新時に開始日が終了日より後の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+        project = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="日付テストプロジェクト",
+            status=ProjectStatus.PLANNING,
+        )
+
+        # Act & Assert
+        project.start_date = date(2025, 12, 31)
+        project.end_date = date(2025, 1, 1)
+        with pytest.raises(InvalidDateRangeError):
+            await repo.update(project, sales_support_organization.id)
+
+    async def test_update_project_negative_budget(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：更新時に予算が負の値の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+        project = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="予算テストプロジェクト",
+            status=ProjectStatus.PLANNING,
+            estimated_budget=1000000,
+        )
+
+        # Act & Assert
+        project.estimated_budget = -1000000
+        with pytest.raises(InvalidBudgetError):
+            await repo.update(project, sales_support_organization.id)

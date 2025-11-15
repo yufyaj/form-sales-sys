@@ -94,6 +94,19 @@ class ProjectRepository(IProjectRepository):
             if user is None:
                 raise UserNotFoundError(owner_user_id)
 
+        # 日付範囲と予算値のバリデーション
+        from src.domain.exceptions import InvalidBudgetError, InvalidDateRangeError
+
+        if start_date is not None and end_date is not None:
+            if start_date > end_date:
+                raise InvalidDateRangeError(str(start_date), str(end_date))
+
+        if estimated_budget is not None and estimated_budget < 0:
+            raise InvalidBudgetError("見積予算", estimated_budget)
+
+        if actual_budget is not None and actual_budget < 0:
+            raise InvalidBudgetError("実績予算", actual_budget)
+
         project = Project(
             client_organization_id=client_organization_id,
             name=name,
@@ -278,6 +291,9 @@ class ProjectRepository(IProjectRepository):
 
             if user is None:
                 raise UserNotFoundError(project.owner_user_id)
+
+        # プロジェクトエンティティのバリデーション
+        project.validate()
 
         # エンティティの値でモデルを更新
         db_project.name = project.name
