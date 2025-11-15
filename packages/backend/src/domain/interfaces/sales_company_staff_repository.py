@@ -109,6 +109,24 @@ class ISalesCompanyStaffRepository(ABC):
         pass
 
     @abstractmethod
+    async def count_by_organization(
+        self,
+        organization_id: int,
+        include_deleted: bool = False,
+    ) -> int:
+        """
+        営業支援会社に属する担当者の総件数を取得
+
+        Args:
+            organization_id: 営業支援会社の組織ID
+            include_deleted: 削除済み担当者を含めるか
+
+        Returns:
+            int: 担当者の総件数
+        """
+        pass
+
+    @abstractmethod
     async def update(
         self,
         staff: SalesCompanyStaffEntity,

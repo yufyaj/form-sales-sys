@@ -151,8 +151,9 @@ class ClientContactNotFoundError(DomainException):
 class SalesCompanyStaffNotFoundError(DomainException):
     """営業支援会社担当者が見つからない場合の例外"""
 
-    def __init__(self, staff_id: int) -> None:
-        super().__init__(f"Sales company staff with id {staff_id} not found")
+    def __init__(self, staff_id: int | None = None) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Sales company staff not found")
 
 
 class BusinessRuleViolationException(DomainException):

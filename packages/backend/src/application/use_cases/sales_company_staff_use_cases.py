@@ -117,9 +117,11 @@ class SalesCompanyStaffUseCases:
             limit=limit,
             include_deleted=False,
         )
-        # 総件数の取得は同じリストの長さでOK（ページネーションなしの場合）
-        # 実運用ではcountメソッドを追加することを推奨
-        total = len(staff_list)
+        # 総件数を正確に取得（ページネーション対応）
+        total = await self._staff_repo.count_by_organization(
+            organization_id=organization_id,
+            include_deleted=False,
+        )
         return staff_list, total
 
     async def update_staff(

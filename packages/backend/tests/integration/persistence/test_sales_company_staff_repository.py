@@ -283,6 +283,71 @@ class TestSalesCompanyStaffRepositoryFind:
         assert len(first_page) == 2
         assert len(second_page) == 1
 
+    async def test_count_by_organization_success(
+        self,
+        db_session: AsyncSession,
+        sales_company_organization: Organization,
+        test_user: User,
+        test_user2: User,
+    ) -> None:
+        """正常系：組織IDで担当者総件数を取得できる"""
+        # Arrange
+        repo = SalesCompanyStaffRepository(db_session)
+
+        # 2人の担当者を作成
+        await repo.create(
+            user_id=test_user.id,
+            organization_id=sales_company_organization.id,
+            department="営業部",
+        )
+        await repo.create(
+            user_id=test_user2.id,
+            organization_id=sales_company_organization.id,
+            department="総務部",
+        )
+
+        # Act
+        count = await repo.count_by_organization(sales_company_organization.id)
+
+        # Assert
+        assert count == 2
+
+    async def test_count_by_organization_excludes_deleted(
+        self,
+        db_session: AsyncSession,
+        sales_company_organization: Organization,
+        test_user: User,
+        test_user2: User,
+    ) -> None:
+        """正常系：削除済み担当者を除外してカウントできる"""
+        # Arrange
+        repo = SalesCompanyStaffRepository(db_session)
+
+        # 2人の担当者を作成
+        staff1 = await repo.create(
+            user_id=test_user.id,
+            organization_id=sales_company_organization.id,
+            department="営業部",
+        )
+        await repo.create(
+            user_id=test_user2.id,
+            organization_id=sales_company_organization.id,
+            department="総務部",
+        )
+
+        # 1人を削除
+        await repo.soft_delete(staff1.id, sales_company_organization.id)
+
+        # Act
+        count = await repo.count_by_organization(sales_company_organization.id)
+        count_with_deleted = await repo.count_by_organization(
+            sales_company_organization.id, include_deleted=True
+        )
+
+        # Assert
+        assert count == 1  # 削除済みを除外
+        assert count_with_deleted == 2  # 削除済みを含む
+
 
 class TestSalesCompanyStaffRepositoryUpdate:
     """営業支援会社担当者更新のテスト"""

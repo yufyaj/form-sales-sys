@@ -4,9 +4,10 @@
 ISalesCompanyStaffRepositoryインターフェースの具体的な実装。
 SQLAlchemyを使用してデータベース操作を行います。
 """
+import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.sales_company_staff_entity import SalesCompanyStaffEntity
@@ -17,6 +18,9 @@ from src.domain.interfaces.sales_company_staff_repository import (
 from src.infrastructure.persistence.models.sales_company_staff import (
     SalesCompanyStaff,
 )
+
+# セキュリティログ用のロガー
+logger = logging.getLogger(__name__)
 
 
 class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
@@ -56,6 +60,19 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
         await self._session.flush()
         await self._session.refresh(staff)
 
+        # セキュリティログ: 担当者作成成功
+        logger.info(
+            "Sales company staff created successfully",
+            extra={
+                "event_type": "sales_company_staff_created",
+                "staff_id": staff.id,
+                "user_id": user_id,
+                "organization_id": organization_id,
+                "department": department,
+                "position": position,
+            },
+        )
+
         return self._to_entity(staff)
 
     async def find_by_id(
@@ -72,10 +89,30 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
         result = await self._session.execute(stmt)
         staff = result.scalar_one_or_none()
 
+        # IDOR攻撃検出ログ
         if staff is None:
-            return None
+            # 実際にスタッフが存在するか確認（IDOR試行の検出）
+            check_stmt = select(SalesCompanyStaff).where(
+                SalesCompanyStaff.id == staff_id,
+                SalesCompanyStaff.deleted_at.is_(None),
+            )
+            check_result = await self._session.execute(check_stmt)
+            actual_staff = check_result.scalar_one_or_none()
 
-        return self._to_entity(staff)
+            if actual_staff is not None:
+                # スタッフは存在するが、別組織からのアクセス試行 = IDOR攻撃の可能性
+                logger.warning(
+                    "Potential IDOR attack detected: cross-tenant access attempt",
+                    extra={
+                        "event_type": "idor_attack_detected",
+                        "attack_type": "sales_company_staff_access",
+                        "staff_id": staff_id,
+                        "requesting_organization_id": requesting_organization_id,
+                        "actual_organization_id": actual_staff.organization_id,
+                    },
+                )
+
+        return self._to_entity(staff) if staff else None
 
     async def find_by_user_id(
         self,
@@ -123,6 +160,25 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
 
         return [self._to_entity(s) for s in staff_list]
 
+    async def count_by_organization(
+        self,
+        organization_id: int,
+        include_deleted: bool = False,
+    ) -> int:
+        """営業支援会社に属する担当者の総件数を取得"""
+        conditions = [
+            SalesCompanyStaff.organization_id == organization_id,
+        ]
+        if not include_deleted:
+            conditions.append(SalesCompanyStaff.deleted_at.is_(None))
+
+        stmt = select(func.count()).select_from(SalesCompanyStaff).where(and_(*conditions))
+
+        result = await self._session.execute(stmt)
+        count = result.scalar_one()
+
+        return count
+
     async def update(
         self,
         staff: SalesCompanyStaffEntity,
@@ -138,7 +194,35 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
         db_staff = result.scalar_one_or_none()
 
         if db_staff is None:
+            # IDOR攻撃検出: 実際にスタッフが存在するか確認
+            check_stmt = select(SalesCompanyStaff).where(
+                SalesCompanyStaff.id == staff.id,
+                SalesCompanyStaff.deleted_at.is_(None),
+            )
+            check_result = await self._session.execute(check_stmt)
+            actual_staff = check_result.scalar_one_or_none()
+
+            if actual_staff is not None:
+                # スタッフは存在するが、別組織からの更新試行 = IDOR攻撃の可能性
+                logger.warning(
+                    "Potential IDOR attack detected: cross-tenant update attempt",
+                    extra={
+                        "event_type": "idor_attack_detected",
+                        "attack_type": "sales_company_staff_update",
+                        "staff_id": staff.id,
+                        "requesting_organization_id": requesting_organization_id,
+                        "actual_organization_id": actual_staff.organization_id,
+                    },
+                )
+
             raise SalesCompanyStaffNotFoundError(staff.id)
+
+        # 更新前の値を保存（監査ログ用）
+        old_values = {
+            "department": db_staff.department,
+            "position": db_staff.position,
+            "employee_number": db_staff.employee_number,
+        }
 
         # エンティティの値でモデルを更新
         db_staff.department = staff.department
@@ -148,6 +232,22 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
 
         await self._session.flush()
         await self._session.refresh(db_staff)
+
+        # セキュリティログ: 担当者更新成功
+        logger.info(
+            "Sales company staff updated successfully",
+            extra={
+                "event_type": "sales_company_staff_updated",
+                "staff_id": staff.id,
+                "organization_id": requesting_organization_id,
+                "old_values": old_values,
+                "new_values": {
+                    "department": staff.department,
+                    "position": staff.position,
+                    "employee_number": staff.employee_number,
+                },
+            },
+        )
 
         return self._to_entity(db_staff)
 
@@ -166,10 +266,42 @@ class SalesCompanyStaffRepository(ISalesCompanyStaffRepository):
         staff = result.scalar_one_or_none()
 
         if staff is None:
+            # IDOR攻撃検出: 実際にスタッフが存在するか確認
+            check_stmt = select(SalesCompanyStaff).where(
+                SalesCompanyStaff.id == staff_id,
+                SalesCompanyStaff.deleted_at.is_(None),
+            )
+            check_result = await self._session.execute(check_stmt)
+            actual_staff = check_result.scalar_one_or_none()
+
+            if actual_staff is not None:
+                # スタッフは存在するが、別組織からの削除試行 = IDOR攻撃の可能性
+                logger.warning(
+                    "Potential IDOR attack detected: cross-tenant delete attempt",
+                    extra={
+                        "event_type": "idor_attack_detected",
+                        "attack_type": "sales_company_staff_delete",
+                        "staff_id": staff_id,
+                        "requesting_organization_id": requesting_organization_id,
+                        "actual_organization_id": actual_staff.organization_id,
+                    },
+                )
+
             raise SalesCompanyStaffNotFoundError(staff_id)
 
         staff.deleted_at = datetime.now(timezone.utc)
         await self._session.flush()
+
+        # セキュリティログ: 担当者削除成功
+        logger.info(
+            "Sales company staff soft deleted successfully",
+            extra={
+                "event_type": "sales_company_staff_deleted",
+                "staff_id": staff_id,
+                "user_id": staff.user_id,
+                "organization_id": requesting_organization_id,
+            },
+        )
 
     def _to_entity(self, staff: SalesCompanyStaff) -> SalesCompanyStaffEntity:
         """
