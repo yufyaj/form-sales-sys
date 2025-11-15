@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.app.api import auth
+from src.app.api.projects import router as projects_router
 from src.app.api.users import router as users_router
 from src.app.core.config import get_settings
 from src.app.core.exceptions import domain_exception_handler
@@ -91,6 +92,7 @@ app.add_exception_handler(DomainException, domain_exception_handler)
 # ルーターの登録
 app.include_router(auth.router)  # 認証ルーターは /auth をプレフィックスとして持つ
 app.include_router(users_router, prefix="/api/v1")  # ユーザー管理は /api/v1/users
+app.include_router(projects_router, prefix="/api/v1")  # プロジェクト管理は /api/v1/projects
 
 
 @app.get("/health", tags=["health"])

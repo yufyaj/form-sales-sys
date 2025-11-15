@@ -148,6 +148,27 @@ class ClientContactNotFoundError(DomainException):
         super().__init__(f"Client contact with id {client_contact_id} not found")
 
 
+class ProjectNotFoundError(DomainException):
+    """プロジェクトが見つからない場合の例外"""
+
+    def __init__(self, project_id: int) -> None:
+        super().__init__(f"Project with id {project_id} not found")
+
+
+class ProjectValidationError(ValidationException):
+    """プロジェクトのバリデーションエラー"""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
+        super().__init__(message, details)
+
+
+class ProjectCannotBeEditedError(BusinessRuleViolationException):
+    """プロジェクトが編集不可能な状態の場合の例外"""
+
+    def __init__(self, project_id: int, reason: str = "Project is archived or deleted") -> None:
+        super().__init__(f"Project {project_id} cannot be edited: {reason}")
+
+
 class BusinessRuleViolationException(DomainException):
     """ビジネスルール違反の基底例外"""
 
