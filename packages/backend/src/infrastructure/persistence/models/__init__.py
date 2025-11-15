@@ -8,6 +8,7 @@ from .base import Base, SoftDeleteMixin, TimestampMixin
 from .client_contact import ClientContact
 from .client_organization import ClientOrganization
 from .organization import Organization, OrganizationType
+from .project import Project, ProjectPriority, ProjectStatus
 from .role import Permission, Role
 from .sales_company_staff import SalesCompanyStaff
 from .user import User
@@ -29,4 +30,7 @@ __all__ = [
     "ClientOrganization",
     "ClientContact",
     "SalesCompanyStaff",
+    "Project",
+    "ProjectStatus",
+    "ProjectPriority",
 ]

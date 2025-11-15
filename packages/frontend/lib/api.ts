@@ -113,6 +113,64 @@ class ApiClient {
       body: JSON.stringify({ email }),
     })
   }
+
+  /**
+   * GETリクエスト
+   */
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'GET',
+    })
+  }
+
+  /**
+   * POSTリクエスト
+   */
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  /**
+   * PUTリクエスト
+   */
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  /**
+   * PATCHリクエスト
+   */
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  /**
+   * DELETEリクエスト
+   */
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+    })
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL)
+
+// 便利な関数エクスポート
+export const get = <T>(endpoint: string) => apiClient.get<T>(endpoint)
+export const post = <T>(endpoint: string, data?: unknown) =>
+  apiClient.post<T>(endpoint, data)
+export const put = <T>(endpoint: string, data?: unknown) =>
+  apiClient.put<T>(endpoint, data)
+export const patch = <T>(endpoint: string, data?: unknown) =>
+  apiClient.patch<T>(endpoint, data)
+export const del = <T>(endpoint: string) => apiClient.delete<T>(endpoint)
