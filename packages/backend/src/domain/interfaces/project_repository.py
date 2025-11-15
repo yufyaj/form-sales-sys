@@ -21,6 +21,7 @@ class IProjectRepository(ABC):
     async def create(
         self,
         client_organization_id: int,
+        requesting_organization_id: int,
         name: str,
         status: ProjectStatus,
         description: str | None = None,
@@ -33,10 +34,11 @@ class IProjectRepository(ABC):
         notes: str | None = None,
     ) -> ProjectEntity:
         """
-        プロジェクトを作成
+        プロジェクトを作成（マルチテナント対応）
 
         Args:
             client_organization_id: 顧客組織ID
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
             name: プロジェクト名
             status: プロジェクトステータス
             description: プロジェクト説明
@@ -50,6 +52,16 @@ class IProjectRepository(ABC):
 
         Returns:
             ProjectEntity: 作成されたプロジェクトエンティティ
+
+        Raises:
+            ClientOrganizationNotFoundError: 顧客組織が見つからない場合、
+                                             またはrequesting_organization_idと一致しない場合
+            UserNotFoundError: owner_user_idが指定され、そのユーザーが見つからない場合、
+                              またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 

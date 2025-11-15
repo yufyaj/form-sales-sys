@@ -36,6 +36,7 @@ class ProjectRepository(IProjectRepository):
     async def create(
         self,
         client_organization_id: int,
+        requesting_organization_id: int,
         name: str,
         status: ProjectStatus,
         description: str | None = None,
@@ -47,7 +48,52 @@ class ProjectRepository(IProjectRepository):
         owner_user_id: int | None = None,
         notes: str | None = None,
     ) -> ProjectEntity:
-        """プロジェクトを作成"""
+        """プロジェクトを作成（マルチテナント対応・IDOR脆弱性対策）"""
+        # client_organization_idがrequesting_organization_id配下か検証
+        from src.domain.exceptions import ClientOrganizationNotFoundError, UserNotFoundError
+
+        stmt = (
+            select(ClientOrganization)
+            .join(
+                Organization,
+                ClientOrganization.organization_id == Organization.id,
+            )
+            .where(
+                ClientOrganization.id == client_organization_id,
+                ClientOrganization.deleted_at.is_(None),
+                Organization.parent_organization_id == requesting_organization_id,
+            )
+        )
+        result = await self._session.execute(stmt)
+        client_org = result.scalar_one_or_none()
+
+        if client_org is None:
+            raise ClientOrganizationNotFoundError(client_organization_id)
+
+        # owner_user_idが指定されている場合、requesting_organization_id配下のユーザーか検証
+        if owner_user_id is not None:
+            from src.infrastructure.persistence.models.user import User
+            from sqlalchemy import or_
+
+            user_stmt = (
+                select(User)
+                .join(Organization, User.organization_id == Organization.id)
+                .where(
+                    User.id == owner_user_id,
+                    or_(
+                        Organization.id == requesting_organization_id,
+                        Organization.parent_organization_id == requesting_organization_id,
+                    ),
+                    User.deleted_at.is_(None),
+                    Organization.deleted_at.is_(None),
+                )
+            )
+            user_result = await self._session.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+
+            if user is None:
+                raise UserNotFoundError(owner_user_id)
+
         project = Project(
             client_organization_id=client_organization_id,
             name=name,
@@ -186,6 +232,10 @@ class ProjectRepository(IProjectRepository):
         requesting_organization_id: int,
     ) -> ProjectEntity:
         """プロジェクト情報を更新（マルチテナント対応・IDOR脆弱性対策）"""
+        from src.domain.exceptions import UserNotFoundError
+        from src.infrastructure.persistence.models.user import User
+        from sqlalchemy import or_
+
         stmt = (
             select(Project)
             .join(
@@ -207,6 +257,27 @@ class ProjectRepository(IProjectRepository):
 
         if db_project is None:
             raise ProjectNotFoundError(project.id)
+
+        # owner_user_idが指定されている場合、requesting_organization_id配下のユーザーか検証
+        if project.owner_user_id is not None:
+            user_stmt = (
+                select(User)
+                .join(Organization, User.organization_id == Organization.id)
+                .where(
+                    User.id == project.owner_user_id,
+                    or_(
+                        Organization.id == requesting_organization_id,
+                        Organization.parent_organization_id == requesting_organization_id,
+                    ),
+                    User.deleted_at.is_(None),
+                    Organization.deleted_at.is_(None),
+                )
+            )
+            user_result = await self._session.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+
+            if user is None:
+                raise UserNotFoundError(project.owner_user_id)
 
         # エンティティの値でモデルを更新
         db_project.name = project.name

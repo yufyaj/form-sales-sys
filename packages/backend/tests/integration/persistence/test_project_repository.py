@@ -10,8 +10,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.project_entity import ProjectPriority, ProjectStatus
-from src.domain.exceptions import ProjectNotFoundError
-from src.infrastructure.persistence.models import ClientOrganization, Organization
+from src.domain.exceptions import (
+    ClientOrganizationNotFoundError,
+    ProjectNotFoundError,
+    UserNotFoundError,
+)
+from src.infrastructure.persistence.models import ClientOrganization, Organization, User
 from src.infrastructure.persistence.models.organization import OrganizationType
 from src.infrastructure.persistence.repositories.project_repository import (
     ProjectRepository,
@@ -62,12 +66,30 @@ async def client_organization(
     return client_org
 
 
+@pytest.fixture
+async def test_user(
+    db_session: AsyncSession, sales_support_organization: Organization
+) -> User:
+    """テスト用ユーザーを作成"""
+    user = User(
+        email="testuser@example.com",
+        hashed_password="dummy_hash",
+        full_name="テストユーザー",
+        organization_id=sales_support_organization.id,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
 class TestProjectRepositoryCreate:
     """プロジェクト作成のテスト"""
 
     async def test_create_project_success(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
         """正常系：プロジェクトを作成できる"""
@@ -77,6 +99,7 @@ class TestProjectRepositoryCreate:
         # Act
         project = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="新規Webサイト構築",
             status=ProjectStatus.PLANNING,
             description="コーポレートサイトのリニューアル",
@@ -102,6 +125,7 @@ class TestProjectRepositoryCreate:
     async def test_create_project_minimal(
         self,
         db_session: AsyncSession,
+        sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
         """正常系：必須項目のみでプロジェクトを作成できる"""
@@ -111,6 +135,7 @@ class TestProjectRepositoryCreate:
         # Act
         project = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="最小プロジェクト",
             status=ProjectStatus.PLANNING,
         )
@@ -123,6 +148,133 @@ class TestProjectRepositoryCreate:
         assert project.description is None
         assert project.start_date is None
         assert project.end_date is None
+
+    async def test_create_project_with_owner(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+        test_user: User,
+    ) -> None:
+        """正常系：プロジェクトオーナーを指定してプロジェクトを作成できる"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act
+        project = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="オーナー付きプロジェクト",
+            status=ProjectStatus.PLANNING,
+            owner_user_id=test_user.id,
+        )
+
+        # Assert
+        assert project.id > 0
+        assert project.owner_user_id == test_user.id
+
+    async def test_create_project_invalid_client_organization(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
+        """異常系：存在しない顧客組織IDでエラー（IDOR脆弱性対策）"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(ClientOrganizationNotFoundError):
+            await repo.create(
+                client_organization_id=999999,
+                requesting_organization_id=sales_support_organization.id,
+                name="不正なプロジェクト",
+                status=ProjectStatus.PLANNING,
+            )
+
+    async def test_create_project_different_tenant_client_organization(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """セキュリティ：別テナントの顧客組織IDでプロジェクト作成できない（IDOR脆弱性対策）"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # 別の営業支援会社を作成
+        other_sales_org = Organization(
+            name="別の営業支援会社",
+            type=OrganizationType.SALES_SUPPORT,
+            email="other@example.com",
+        )
+        db_session.add(other_sales_org)
+        await db_session.flush()
+
+        # Act & Assert
+        with pytest.raises(ClientOrganizationNotFoundError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=other_sales_org.id,
+                name="不正なプロジェクト",
+                status=ProjectStatus.PLANNING,
+            )
+
+    async def test_create_project_invalid_owner_user(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：存在しないユーザーIDでエラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(UserNotFoundError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="不正なオーナー付きプロジェクト",
+                status=ProjectStatus.PLANNING,
+                owner_user_id=999999,
+            )
+
+    async def test_create_project_different_tenant_owner_user(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """セキュリティ：別テナントのユーザーIDでプロジェクト作成できない（IDOR脆弱性対策）"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # 別の営業支援会社とそのユーザーを作成
+        other_sales_org = Organization(
+            name="別の営業支援会社",
+            type=OrganizationType.SALES_SUPPORT,
+            email="other@example.com",
+        )
+        db_session.add(other_sales_org)
+        await db_session.flush()
+
+        other_user = User(
+            email="otheruser@example.com",
+            hashed_password="dummy_hash",
+            full_name="別のユーザー",
+            organization_id=other_sales_org.id,
+            is_active=True,
+        )
+        db_session.add(other_user)
+        await db_session.flush()
+
+        # Act & Assert
+        with pytest.raises(UserNotFoundError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="不正なオーナー付きプロジェクト",
+                status=ProjectStatus.PLANNING,
+                owner_user_id=other_user.id,
+            )
 
 
 class TestProjectRepositoryFind:
@@ -139,15 +291,14 @@ class TestProjectRepositoryFind:
         repo = ProjectRepository(db_session)
         created = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="テストプロジェクト",
             status=ProjectStatus.IN_PROGRESS,
             estimated_budget=3000000,
         )
 
         # Act
-        project = await repo.find_by_id(
-            created.id, sales_support_organization.id
-        )
+        project = await repo.find_by_id(created.id, sales_support_organization.id)
 
         # Assert
         assert project is not None
@@ -180,6 +331,7 @@ class TestProjectRepositoryFind:
         repo = ProjectRepository(db_session)
         created = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="極秘プロジェクト",
             status=ProjectStatus.PLANNING,
         )
@@ -217,6 +369,7 @@ class TestProjectRepositoryList:
         for i in range(3):
             await repo.create(
                 client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
                 name=f"プロジェクト{i+1}",
                 status=ProjectStatus.PLANNING,
             )
@@ -228,7 +381,10 @@ class TestProjectRepositoryList:
 
         # Assert
         assert len(projects) == 3
-        assert all(p.name in ["プロジェクト1", "プロジェクト2", "プロジェクト3"] for p in projects)
+        assert all(
+            p.name in ["プロジェクト1", "プロジェクト2", "プロジェクト3"]
+            for p in projects
+        )
 
     async def test_list_by_sales_support_organization_success(
         self,
@@ -260,6 +416,7 @@ class TestProjectRepositoryList:
             for j in range(2):
                 await repo.create(
                     client_organization_id=client_organization.id,
+                    requesting_organization_id=sales_support_organization.id,
                     name=f"顧客{i+1}のプロジェクト{j+1}",
                     status=ProjectStatus.IN_PROGRESS,
                 )
@@ -284,16 +441,19 @@ class TestProjectRepositoryList:
 
         await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="企画中プロジェクト",
             status=ProjectStatus.PLANNING,
         )
         await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="進行中プロジェクト",
             status=ProjectStatus.IN_PROGRESS,
         )
         await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="完了プロジェクト",
             status=ProjectStatus.COMPLETED,
         )
@@ -329,6 +489,7 @@ class TestProjectRepositoryUpdate:
         repo = ProjectRepository(db_session)
         project = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="旧プロジェクト名",
             status=ProjectStatus.PLANNING,
             estimated_budget=1000000,
@@ -384,6 +545,7 @@ class TestProjectRepositorySoftDelete:
         repo = ProjectRepository(db_session)
         project = await repo.create(
             client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
             name="削除予定プロジェクト",
             status=ProjectStatus.CANCELLED,
         )

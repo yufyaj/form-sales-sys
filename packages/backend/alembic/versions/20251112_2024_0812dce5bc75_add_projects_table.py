@@ -41,6 +41,7 @@ def upgrade() -> None:
         sa.Column('name', sa.String(length=255), nullable=False,
                   comment='プロジェクト名'),
         sa.Column('status', project_status_enum, nullable=False,
+                  server_default='planning',
                   comment='プロジェクトステータス'),
         sa.Column('description', sa.Text(), nullable=True,
                   comment='プロジェクト説明'),
