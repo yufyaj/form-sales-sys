@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.app.api import auth
+from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
 from src.app.api.users import router as users_router
@@ -94,6 +95,8 @@ app.add_exception_handler(DomainException, domain_exception_handler)
 app.include_router(auth.router)  # 認証ルーターは /auth をプレフィックスとして持つ
 app.include_router(users_router, prefix="/api/v1")  # ユーザー管理は /api/v1/users
 app.include_router(
+    sales_company_staff_router, prefix="/api/v1"
+)  # 営業支援会社担当者は /api/v1/sales-company-staff
     client_organizations_router, prefix="/api/v1"
 )  # 顧客組織管理は /api/v1/client-organizations
 app.include_router(
