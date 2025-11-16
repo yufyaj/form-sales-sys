@@ -4,7 +4,7 @@
 API境界でのバリデーションとデータ変換を行うDTOスキーマ
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -19,10 +19,19 @@ class ProjectStatusEnum(str, Enum):
     """プロジェクトステータス"""
 
     PLANNING = "planning"
-    ACTIVE = "active"
-    PAUSED = "paused"
+    IN_PROGRESS = "in_progress"
+    ON_HOLD = "on_hold"
     COMPLETED = "completed"
-    ARCHIVED = "archived"
+    CANCELLED = "cancelled"
+
+
+class ProjectPriorityEnum(str, Enum):
+    """プロジェクト優先度"""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 # ========================================
@@ -36,15 +45,14 @@ class ProjectBase(BaseModel):
     name: str = Field(
         ...,
         min_length=1,
-        max_length=100,
-        description="プロジェクト名（最大100文字）",
-        examples=["新規顧客獲得プロジェクト"],
+        max_length=255,
+        description="プロジェクト名（最大255文字）",
+        examples=["新規Webサイト構築"],
     )
     description: str | None = Field(
         None,
-        max_length=500,
-        description="プロジェクト説明（最大500文字）",
-        examples=["2025年Q1の新規顧客獲得を目的としたプロジェクト"],
+        description="プロジェクト説明",
+        examples=["コーポレートサイトのリニューアル"],
     )
 
     @field_validator("name")
@@ -95,6 +103,46 @@ class ProjectCreateRequest(ProjectBase):
         default=ProjectStatusEnum.PLANNING,
         description="プロジェクトステータス",
     )
+    start_date: date | None = Field(
+        None,
+        description="開始予定日",
+    )
+    end_date: date | None = Field(
+        None,
+        description="終了予定日",
+    )
+    estimated_budget: int | None = Field(
+        None,
+        ge=0,
+        description="見積予算（円）",
+    )
+    actual_budget: int | None = Field(
+        None,
+        ge=0,
+        description="実績予算（円）",
+    )
+    priority: ProjectPriorityEnum | None = Field(
+        None,
+        description="プロジェクト優先度",
+    )
+    owner_user_id: int | None = Field(
+        None,
+        gt=0,
+        description="プロジェクトオーナー（担当ユーザーID）",
+    )
+    notes: str | None = Field(
+        None,
+        description="備考",
+    )
+
+    @field_validator("notes")
+    @classmethod
+    def sanitize_notes(cls, v: str | None) -> str | None:
+        """備考をサニタイズ"""
+        if v is None:
+            return None
+        cleaned = "".join(c for c in v if c.isprintable() or c in ["\n", "\t"])
+        return cleaned if cleaned else None
 
 
 class ProjectUpdateRequest(BaseModel):
@@ -103,17 +151,47 @@ class ProjectUpdateRequest(BaseModel):
     name: str | None = Field(
         None,
         min_length=1,
-        max_length=100,
-        description="プロジェクト名（最大100文字）",
+        max_length=255,
+        description="プロジェクト名（最大255文字）",
     )
     description: str | None = Field(
         None,
-        max_length=500,
-        description="プロジェクト説明（最大500文字）",
+        description="プロジェクト説明",
     )
     status: ProjectStatusEnum | None = Field(
         None,
         description="プロジェクトステータス",
+    )
+    start_date: date | None = Field(
+        None,
+        description="開始予定日",
+    )
+    end_date: date | None = Field(
+        None,
+        description="終了予定日",
+    )
+    estimated_budget: int | None = Field(
+        None,
+        ge=0,
+        description="見積予算（円）",
+    )
+    actual_budget: int | None = Field(
+        None,
+        ge=0,
+        description="実績予算（円）",
+    )
+    priority: ProjectPriorityEnum | None = Field(
+        None,
+        description="プロジェクト優先度",
+    )
+    owner_user_id: int | None = Field(
+        None,
+        gt=0,
+        description="プロジェクトオーナー（担当ユーザーID）",
+    )
+    notes: str | None = Field(
+        None,
+        description="備考",
     )
 
     @field_validator("name")
@@ -137,6 +215,15 @@ class ProjectUpdateRequest(BaseModel):
         cleaned = "".join(c for c in v if c.isprintable() or c in ["\n", "\t"])
         return cleaned if cleaned else None
 
+    @field_validator("notes")
+    @classmethod
+    def sanitize_notes(cls, v: str | None) -> str | None:
+        """備考をサニタイズ"""
+        if v is None:
+            return None
+        cleaned = "".join(c for c in v if c.isprintable() or c in ["\n", "\t"])
+        return cleaned if cleaned else None
+
 
 # ========================================
 # レスポンススキーマ
@@ -147,15 +234,17 @@ class ProjectResponse(BaseModel):
     """プロジェクトレスポンス"""
 
     id: int = Field(..., description="プロジェクトID")
-    organization_id: int = Field(..., description="営業支援組織ID")
     client_organization_id: int = Field(..., description="顧客組織ID")
     name: str = Field(..., description="プロジェクト名")
     description: str | None = Field(None, description="プロジェクト説明")
     status: ProjectStatusEnum = Field(..., description="プロジェクトステータス")
-    progress: int = Field(..., ge=0, le=100, description="進捗率（0-100）")
-    total_lists: int = Field(..., ge=0, description="総リスト数")
-    completed_lists: int = Field(..., ge=0, description="完了リスト数")
-    total_submissions: int = Field(..., ge=0, description="総送信数")
+    start_date: date | None = Field(None, description="開始予定日")
+    end_date: date | None = Field(None, description="終了予定日")
+    estimated_budget: int | None = Field(None, description="見積予算（円）")
+    actual_budget: int | None = Field(None, description="実績予算（円）")
+    priority: ProjectPriorityEnum | None = Field(None, description="プロジェクト優先度")
+    owner_user_id: int | None = Field(None, description="プロジェクトオーナー（担当ユーザーID）")
+    notes: str | None = Field(None, description="備考")
     created_at: datetime = Field(..., description="作成日時")
     updated_at: datetime = Field(..., description="更新日時")
     deleted_at: datetime | None = Field(None, description="削除日時（論理削除）")
@@ -165,15 +254,17 @@ class ProjectResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "organization_id": 1,
                 "client_organization_id": 10,
-                "name": "新規顧客獲得プロジェクト",
-                "description": "2025年Q1の新規顧客獲得を目的としたプロジェクト",
-                "status": "active",
-                "progress": 45,
-                "total_lists": 100,
-                "completed_lists": 45,
-                "total_submissions": 1200,
+                "name": "新規Webサイト構築",
+                "description": "コーポレートサイトのリニューアル",
+                "status": "in_progress",
+                "start_date": "2025-01-01",
+                "end_date": "2025-03-31",
+                "estimated_budget": 5000000,
+                "actual_budget": 4800000,
+                "priority": "high",
+                "owner_user_id": 5,
+                "notes": "Q1完了目標",
                 "created_at": "2025-11-03T10:00:00Z",
                 "updated_at": "2025-11-10T15:30:00Z",
                 "deleted_at": None,
@@ -196,15 +287,17 @@ class ProjectListResponse(BaseModel):
                 "projects": [
                     {
                         "id": 1,
-                        "organization_id": 1,
                         "client_organization_id": 10,
-                        "name": "新規顧客獲得プロジェクト",
-                        "description": "2025年Q1の新規顧客獲得を目的としたプロジェクト",
-                        "status": "active",
-                        "progress": 45,
-                        "total_lists": 100,
-                        "completed_lists": 45,
-                        "total_submissions": 1200,
+                        "name": "新規Webサイト構築",
+                        "description": "コーポレートサイトのリニューアル",
+                        "status": "in_progress",
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-03-31",
+                        "estimated_budget": 5000000,
+                        "actual_budget": 4800000,
+                        "priority": "high",
+                        "owner_user_id": 5,
+                        "notes": "Q1完了目標",
                         "created_at": "2025-11-03T10:00:00Z",
                         "updated_at": "2025-11-10T15:30:00Z",
                         "deleted_at": None,
