@@ -26,11 +26,38 @@ async function getAuthToken(): Promise<string | undefined> {
 
 /**
  * APIエラーハンドリング
+ * セキュリティ: サーバーエラーの詳細を隠蔽し、安全なメッセージのみを返す
  */
 async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.detail || `APIエラー: ${response.status}`)
+
+    // サーバー側エラー（500番台）は詳細を隠蔽
+    if (response.status >= 500) {
+      // ログには詳細を記録（サーバー側ログで確認可能）
+      console.error('Server error occurred', {
+        status: response.status,
+        timestamp: new Date().toISOString(),
+        // 詳細は含めない（機密情報保護）
+      })
+      throw new Error(
+        'サーバーエラーが発生しました。しばらく経ってから再度お試しください。'
+      )
+    }
+
+    // クライアントエラー（400番台）は安全なメッセージのみ
+    const safeErrorMessages: Record<number, string> = {
+      400: '入力内容に誤りがあります',
+      401: '認証が必要です',
+      403: 'アクセス権限がありません',
+      404: 'リソースが見つかりません',
+      409: '既に存在するデータです',
+      422: '入力内容を確認してください',
+    }
+
+    const safeMessage =
+      safeErrorMessages[response.status] || 'リクエストの処理に失敗しました'
+    throw new Error(safeMessage)
   }
 
   // 204 No Contentの場合は空のオブジェクトを返す
@@ -70,7 +97,12 @@ export async function getUserList(
     const data = await handleApiResponse<UserListResponse>(response)
     return { success: true, data }
   } catch (error) {
-    console.error('ユーザー一覧取得エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー一覧取得エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+      // トークンやパラメータは含めない
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザー一覧の取得に失敗しました',
@@ -106,7 +138,11 @@ export async function getUser(
     const data = await handleApiResponse<User>(response)
     return { success: true, data }
   } catch (error) {
-    console.error('ユーザー取得エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー取得エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザー情報の取得に失敗しました',
@@ -142,7 +178,11 @@ export async function getUserWithRoles(
     const data = await handleApiResponse<UserWithRoles>(response)
     return { success: true, data }
   } catch (error) {
-    console.error('ユーザー・ロール取得エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー・ロール取得エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザー情報の取得に失敗しました',
@@ -178,7 +218,11 @@ export async function createUser(
 
     return { success: true, data }
   } catch (error) {
-    console.error('ユーザー作成エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー作成エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザーの作成に失敗しました',
@@ -219,7 +263,11 @@ export async function updateUser(
 
     return { success: true, data }
   } catch (error) {
-    console.error('ユーザー更新エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー更新エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザー情報の更新に失敗しました',
@@ -257,7 +305,11 @@ export async function deleteUser(
 
     return { success: true }
   } catch (error) {
-    console.error('ユーザー削除エラー:', error)
+    // セキュリティ: 機密情報を含まないログ記録
+    console.error('ユーザー削除エラー', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'ユーザーの削除に失敗しました',

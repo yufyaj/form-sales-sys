@@ -6,24 +6,47 @@ import { z } from 'zod'
 
 /**
  * パスワードバリデーションルール
- * - 12文字以上
- * - 大文字、小文字、数字を含む
+ * セキュリティ強化: NIST SP 800-63B準拠
+ * - 12文字以上、128文字以下
+ * - 大文字、小文字、数字、特殊文字を含む
  */
 const passwordSchema = z
   .string()
   .min(12, 'パスワードは12文字以上で入力してください')
+  .max(128, 'パスワードは128文字以内で入力してください')
   .regex(/[A-Z]/, 'パスワードには大文字を含めてください')
   .regex(/[a-z]/, 'パスワードには小文字を含めてください')
   .regex(/[0-9]/, 'パスワードには数字を含めてください')
+  .regex(
+    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+    'パスワードには特殊文字を含めてください'
+  )
 
 /**
  * メールアドレスバリデーション
+ * セキュリティ: 使い捨てメールアドレスのブロック
  */
 const emailSchema = z
   .string()
   .trim()
-  .toLowerCase()
+  .min(1, 'メールアドレスを入力してください')
   .email('有効なメールアドレスを入力してください')
+  .toLowerCase()
+  .refine(
+    (email) => {
+      // 禁止ドメインリスト（使い捨てメールなど）
+      const blockedDomains = [
+        'tempmail.com',
+        'guerrillamail.com',
+        'mailinator.com',
+        '10minutemail.com',
+        'throwaway.email',
+      ]
+      const domain = email.split('@')[1]
+      return !blockedDomains.includes(domain)
+    },
+    { message: 'このメールアドレスのドメインは使用できません' }
+  )
 
 /**
  * ユーザー作成フォームスキーマ
@@ -40,6 +63,10 @@ export const userCreateSchema = z.object({
   phone: z
     .string()
     .trim()
+    .regex(
+      /^$|^(\+81|0)\d{1,4}-?\d{1,4}-?\d{4}$/,
+      '有効な電話番号を入力してください（例: 03-1234-5678, 090-1234-5678）'
+    )
     .transform((val) => (val === '' ? null : val))
     .nullable(),
   description: z
@@ -66,6 +93,10 @@ export const userUpdateSchema = z.object({
   phone: z
     .string()
     .trim()
+    .regex(
+      /^$|^(\+81|0)\d{1,4}-?\d{1,4}-?\d{4}$/,
+      '有効な電話番号を入力してください（例: 03-1234-5678, 090-1234-5678）'
+    )
     .transform((val) => (val === '' ? null : val))
     .nullable()
     .optional(),
