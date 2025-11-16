@@ -174,6 +174,8 @@ class SalesCompanyStaffNotFoundError(DomainException):
     def __init__(self, staff_id: int | None = None) -> None:
         # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
         super().__init__("Sales company staff not found")
+
+
 class ProjectNotFoundError(DomainException):
     """プロジェクトが見つからない場合の例外"""
 
@@ -185,6 +187,13 @@ class BusinessRuleViolationException(DomainException):
     """ビジネスルール違反の基底例外"""
 
     pass
+
+
+class ProjectCannotBeEditedError(BusinessRuleViolationException):
+    """プロジェクトが編集不可能な状態の場合の例外"""
+
+    def __init__(self, project_id: int, reason: str = "Project is archived or deleted") -> None:
+        super().__init__(f"Project {project_id} cannot be edited: {reason}")
 
 
 # ========================================
