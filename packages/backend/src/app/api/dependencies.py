@@ -13,8 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.core.database import get_db
 from src.app.core.security import decode_access_token
+from src.application.use_cases.client_contact_use_cases import ClientContactUseCases
+from src.application.use_cases.client_organization_use_cases import (
+    ClientOrganizationUseCases,
+)
 from src.application.use_cases.user_use_cases import UserUseCases
 from src.domain.entities.user_entity import UserEntity
+from src.infrastructure.persistence.repositories.client_contact_repository import (
+    ClientContactRepository,
+)
+from src.infrastructure.persistence.repositories.client_organization_repository import (
+    ClientOrganizationRepository,
+)
 from src.infrastructure.persistence.repositories.organization_repository import (
     OrganizationRepository,
 )
@@ -270,6 +280,56 @@ async def get_user_use_cases(
         user_repository=user_repo,
         organization_repository=org_repo,
         role_repository=role_repo,
+    )
+
+    yield use_cases
+
+
+async def get_client_organization_use_cases(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[ClientOrganizationUseCases, None]:
+    """
+    顧客組織ユースケースの依存性注入
+
+    Args:
+        session: DBセッション
+
+    Yields:
+        ClientOrganizationUseCasesインスタンス
+    """
+    # リポジトリをインスタンス化
+    client_org_repo = ClientOrganizationRepository(session)
+    org_repo = OrganizationRepository(session)
+
+    # ユースケースをインスタンス化
+    use_cases = ClientOrganizationUseCases(
+        client_org_repository=client_org_repo,
+        organization_repository=org_repo,
+    )
+
+    yield use_cases
+
+
+async def get_client_contact_use_cases(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[ClientContactUseCases, None]:
+    """
+    顧客担当者ユースケースの依存性注入
+
+    Args:
+        session: DBセッション
+
+    Yields:
+        ClientContactUseCasesインスタンス
+    """
+    # リポジトリをインスタンス化
+    contact_repo = ClientContactRepository(session)
+    client_org_repo = ClientOrganizationRepository(session)
+
+    # ユースケースをインスタンス化
+    use_cases = ClientContactUseCases(
+        client_contact_repository=contact_repo,
+        client_organization_repository=client_org_repo,
     )
 
     yield use_cases

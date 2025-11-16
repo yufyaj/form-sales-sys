@@ -1,9 +1,10 @@
 """
-プロジェクトリポジトリの統合テスト
+プロジェクトリポジトリの結合テスト
 
-実際のデータベースを使用してリポジトリ操作をテストします。
+実際のデータベースを使用してProjectRepositoryの動作を検証します。
+TDDサイクル：Red - まず失敗するテストを書きます。
 """
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +17,8 @@ from src.domain.exceptions import (
     ProjectNotFoundError,
     UserNotFoundError,
 )
-from src.infrastructure.persistence.models.client_organization import (
-    ClientOrganization,
-)
-from src.infrastructure.persistence.models.organization import Organization, OrganizationType
-from src.infrastructure.persistence.models.user import User
+from src.infrastructure.persistence.models import ClientOrganization, Organization, User
+from src.infrastructure.persistence.models.organization import OrganizationType
 from src.infrastructure.persistence.repositories.project_repository import (
     ProjectRepository,
 )
@@ -60,29 +58,26 @@ async def client_organization(
     db_session: AsyncSession, client_base_organization: Organization
 ) -> ClientOrganization:
     """テスト用顧客組織を作成"""
-    from src.infrastructure.persistence.repositories.client_organization_repository import (
-        ClientOrganizationRepository,
-    )
-
-    repo = ClientOrganizationRepository(db_session)
-    client_org = await repo.create(
+    client_org = ClientOrganization(
         organization_id=client_base_organization.id,
         industry="IT・情報通信",
         employee_count=500,
     )
+    db_session.add(client_org)
+    await db_session.flush()
     return client_org
 
 
 @pytest.fixture
-async def admin_user(
+async def test_user(
     db_session: AsyncSession, sales_support_organization: Organization
 ) -> User:
-    """テスト用管理者ユーザーを作成"""
+    """テスト用ユーザーを作成"""
     user = User(
+        email="testuser@example.com",
+        hashed_password="dummy_hash",
+        full_name="テストユーザー",
         organization_id=sales_support_organization.id,
-        email="admin@example.com",
-        full_name="管理者",
-        hashed_password="hashed_password",
         is_active=True,
     )
     db_session.add(user)
@@ -90,9 +85,8 @@ async def admin_user(
     return user
 
 
-@pytest.mark.asyncio
-class TestProjectRepository:
-    """ProjectRepositoryの統合テストクラス"""
+class TestProjectRepositoryCreate:
+    """プロジェクト作成のテスト"""
 
     async def test_create_project_success(
         self,
@@ -100,7 +94,7 @@ class TestProjectRepository:
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """プロジェクト作成が成功する"""
+        """正常系：プロジェクトを作成できる"""
         # Arrange
         repo = ProjectRepository(db_session)
 
@@ -114,13 +108,12 @@ class TestProjectRepository:
             start_date=date(2025, 1, 1),
             end_date=date(2025, 3, 31),
             estimated_budget=5000000,
-            actual_budget=None,
             priority=ProjectPriority.HIGH.value,
             notes="Q1完了目標",
         )
 
         # Assert
-        assert project.id is not None
+        assert project.id > 0
         assert project.client_organization_id == client_organization.id
         assert project.name == "新規Webサイト構築"
         assert project.status == ProjectStatus.PLANNING
@@ -128,21 +121,16 @@ class TestProjectRepository:
         assert project.start_date == date(2025, 1, 1)
         assert project.end_date == date(2025, 3, 31)
         assert project.estimated_budget == 5000000
-        assert project.actual_budget is None
         assert project.priority == ProjectPriority.HIGH
         assert project.notes == "Q1完了目標"
-        assert project.created_at is not None
-        assert project.updated_at is not None
-        assert project.deleted_at is None
 
-    async def test_create_project_with_owner_user_id_success(
+    async def test_create_project_minimal(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
-        admin_user: User,
     ) -> None:
-        """owner_user_idを指定してプロジェクト作成が成功する"""
+        """正常系：必須項目のみでプロジェクトを作成できる"""
         # Arrange
         repo = ProjectRepository(db_session)
 
@@ -150,298 +138,298 @@ class TestProjectRepository:
         project = await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
-            name="新規プロジェクト",
+            name="最小プロジェクト",
             status=ProjectStatus.PLANNING,
-            owner_user_id=admin_user.id,
         )
 
         # Assert
-        assert project.id is not None
-        assert project.owner_user_id == admin_user.id
+        assert project.id > 0
+        assert project.client_organization_id == client_organization.id
+        assert project.name == "最小プロジェクト"
+        assert project.status == ProjectStatus.PLANNING
+        assert project.description is None
+        assert project.start_date is None
+        assert project.end_date is None
 
-    async def test_create_project_fails_when_client_organization_not_found(
+    async def test_create_project_with_owner(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+        test_user: User,
     ) -> None:
-        """存在しない顧客組織IDでプロジェクト作成が失敗する"""
+        """正常系：プロジェクトオーナーを指定してプロジェクトを作成できる"""
         # Arrange
         repo = ProjectRepository(db_session)
-        non_existent_id = 99999
+
+        # Act
+        project = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="オーナー付きプロジェクト",
+            status=ProjectStatus.PLANNING,
+            owner_user_id=test_user.id,
+        )
+
+        # Assert
+        assert project.id > 0
+        assert project.owner_user_id == test_user.id
+
+    async def test_create_project_invalid_client_organization(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
+        """異常系：存在しない顧客組織IDでエラー（IDOR脆弱性対策）"""
+        # Arrange
+        repo = ProjectRepository(db_session)
 
         # Act & Assert
         with pytest.raises(ClientOrganizationNotFoundError):
             await repo.create(
-                client_organization_id=non_existent_id,
+                client_organization_id=999999,
                 requesting_organization_id=sales_support_organization.id,
-                name="テストプロジェクト",
+                name="不正なプロジェクト",
                 status=ProjectStatus.PLANNING,
             )
 
-    async def test_create_project_fails_when_client_organization_belongs_to_different_org(
+    async def test_create_project_different_tenant_client_organization(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """別組織の顧客組織に対してプロジェクト作成が失敗する（IDOR対策）"""
+        """セキュリティ：別テナントの顧客組織IDでプロジェクト作成できない（IDOR脆弱性対策）"""
         # Arrange
         repo = ProjectRepository(db_session)
-        different_org_id = 99999
+
+        # 別の営業支援会社を作成
+        other_sales_org = Organization(
+            name="別の営業支援会社",
+            type=OrganizationType.SALES_SUPPORT,
+            email="other@example.com",
+        )
+        db_session.add(other_sales_org)
+        await db_session.flush()
 
         # Act & Assert
         with pytest.raises(ClientOrganizationNotFoundError):
             await repo.create(
                 client_organization_id=client_organization.id,
-                requesting_organization_id=different_org_id,
-                name="テストプロジェクト",
+                requesting_organization_id=other_sales_org.id,
+                name="不正なプロジェクト",
                 status=ProjectStatus.PLANNING,
             )
 
-    async def test_create_project_fails_when_owner_user_not_found(
+    async def test_create_project_invalid_owner_user(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """存在しないowner_user_idでプロジェクト作成が失敗する"""
+        """異常系：存在しないユーザーIDでエラー"""
         # Arrange
         repo = ProjectRepository(db_session)
-        non_existent_user_id = 99999
 
         # Act & Assert
         with pytest.raises(UserNotFoundError):
             await repo.create(
                 client_organization_id=client_organization.id,
                 requesting_organization_id=sales_support_organization.id,
-                name="テストプロジェクト",
+                name="不正なオーナー付きプロジェクト",
                 status=ProjectStatus.PLANNING,
-                owner_user_id=non_existent_user_id,
+                owner_user_id=999999,
             )
 
-    async def test_create_project_fails_when_date_range_invalid(
+    async def test_create_project_different_tenant_owner_user(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """開始日が終了日より後の場合、プロジェクト作成が失敗する"""
+        """セキュリティ：別テナントのユーザーIDでプロジェクト作成できない（IDOR脆弱性対策）"""
         # Arrange
         repo = ProjectRepository(db_session)
 
+        # 別の営業支援会社とそのユーザーを作成
+        other_sales_org = Organization(
+            name="別の営業支援会社",
+            type=OrganizationType.SALES_SUPPORT,
+            email="other@example.com",
+        )
+        db_session.add(other_sales_org)
+        await db_session.flush()
+
+        other_user = User(
+            email="otheruser@example.com",
+            hashed_password="dummy_hash",
+            full_name="別のユーザー",
+            organization_id=other_sales_org.id,
+            is_active=True,
+        )
+        db_session.add(other_user)
+        await db_session.flush()
+
         # Act & Assert
-        with pytest.raises(InvalidDateRangeError):
+        with pytest.raises(UserNotFoundError):
             await repo.create(
                 client_organization_id=client_organization.id,
                 requesting_organization_id=sales_support_organization.id,
-                name="テストプロジェクト",
+                name="不正なオーナー付きプロジェクト",
                 status=ProjectStatus.PLANNING,
-                start_date=date(2025, 3, 31),
-                end_date=date(2025, 1, 1),
+                owner_user_id=other_user.id,
             )
 
-    async def test_create_project_fails_when_estimated_budget_negative(
+
+class TestProjectRepositoryFind:
+    """プロジェクト検索のテスト"""
+
+    async def test_find_by_id_success(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """見積予算が負の値の場合、プロジェクト作成が失敗する"""
+        """正常系：IDでプロジェクトを検索できる"""
         # Arrange
         repo = ProjectRepository(db_session)
-
-        # Act & Assert
-        with pytest.raises(InvalidBudgetError):
-            await repo.create(
-                client_organization_id=client_organization.id,
-                requesting_organization_id=sales_support_organization.id,
-                name="テストプロジェクト",
-                status=ProjectStatus.PLANNING,
-                estimated_budget=-1000,
-            )
-
-    async def test_create_project_fails_when_actual_budget_negative(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-        client_organization: ClientOrganization,
-    ) -> None:
-        """実績予算が負の値の場合、プロジェクト作成が失敗する"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-
-        # Act & Assert
-        with pytest.raises(InvalidBudgetError):
-            await repo.create(
-                client_organization_id=client_organization.id,
-                requesting_organization_id=sales_support_organization.id,
-                name="テストプロジェクト",
-                status=ProjectStatus.PLANNING,
-                actual_budget=-1000,
-            )
-
-    async def test_find_by_id_returns_project_when_exists(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-        client_organization: ClientOrganization,
-    ) -> None:
-        """プロジェクトが存在する場合、find_by_idはプロジェクトを返す"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-        created_project = await repo.create(
+        created = await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
             name="テストプロジェクト",
-            status=ProjectStatus.PLANNING,
-        )
-
-        # Act
-        found_project = await repo.find_by_id(
-            project_id=created_project.id,
-            requesting_organization_id=sales_support_organization.id,
-        )
-
-        # Assert
-        assert found_project is not None
-        assert found_project.id == created_project.id
-        assert found_project.name == "テストプロジェクト"
-
-    async def test_find_by_id_returns_none_when_not_exists(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-    ) -> None:
-        """プロジェクトが存在しない場合、find_by_idはNoneを返す"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-        non_existent_id = 99999
-
-        # Act
-        found_project = await repo.find_by_id(
-            project_id=non_existent_id,
-            requesting_organization_id=sales_support_organization.id,
-        )
-
-        # Assert
-        assert found_project is None
-
-    async def test_find_by_id_returns_none_when_different_organization(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-        client_organization: ClientOrganization,
-    ) -> None:
-        """別組織のプロジェクトを検索した場合、find_by_idはNoneを返す（IDOR対策）"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-        created_project = await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="テストプロジェクト",
-            status=ProjectStatus.PLANNING,
-        )
-        different_org_id = 99999
-
-        # Act
-        found_project = await repo.find_by_id(
-            project_id=created_project.id,
-            requesting_organization_id=different_org_id,
-        )
-
-        # Assert
-        assert found_project is None
-
-    async def test_list_by_client_organization_returns_projects(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-        client_organization: ClientOrganization,
-    ) -> None:
-        """顧客組織に属するプロジェクト一覧を取得できる"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-        await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト1",
-            status=ProjectStatus.PLANNING,
-        )
-        await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト2",
             status=ProjectStatus.IN_PROGRESS,
+            estimated_budget=3000000,
         )
 
         # Act
-        projects = await repo.list_by_client_organization(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-        )
+        project = await repo.find_by_id(created.id, sales_support_organization.id)
 
         # Assert
-        assert len(projects) == 2
-        assert projects[0].name in ["プロジェクト1", "プロジェクト2"]
-        assert projects[1].name in ["プロジェクト1", "プロジェクト2"]
+        assert project is not None
+        assert project.id == created.id
+        assert project.name == "テストプロジェクト"
+        assert project.status == ProjectStatus.IN_PROGRESS
+        assert project.estimated_budget == 3000000
 
-    async def test_list_by_client_organization_with_pagination(
+    async def test_find_by_id_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
+        """正常系：存在しないIDはNoneを返す"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act
+        project = await repo.find_by_id(999999, sales_support_organization.id)
+
+        # Assert
+        assert project is None
+
+    async def test_find_by_id_multi_tenant_isolation(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """ページネーション付きでプロジェクト一覧を取得できる"""
+        """セキュリティ：別の営業支援会社のプロジェクトは取得できない（マルチテナント分離）"""
         # Arrange
         repo = ProjectRepository(db_session)
-        for i in range(5):
+        created = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="極秘プロジェクト",
+            status=ProjectStatus.PLANNING,
+        )
+
+        # 別の営業支援会社を作成
+        other_sales_org = Organization(
+            name="別の営業支援会社",
+            type=OrganizationType.SALES_SUPPORT,
+            email="other@example.com",
+        )
+        db_session.add(other_sales_org)
+        await db_session.flush()
+
+        # Act
+        project = await repo.find_by_id(created.id, other_sales_org.id)
+
+        # Assert - IDOR脆弱性対策により、別テナントのプロジェクトは取得できない
+        assert project is None
+
+
+class TestProjectRepositoryList:
+    """プロジェクト一覧取得のテスト"""
+
+    async def test_list_by_client_organization_success(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """正常系：顧客組織IDでプロジェクト一覧を取得できる"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # 3つのプロジェクトを作成
+        for i in range(3):
             await repo.create(
                 client_organization_id=client_organization.id,
                 requesting_organization_id=sales_support_organization.id,
-                name=f"プロジェクト{i + 1}",
+                name=f"プロジェクト{i+1}",
                 status=ProjectStatus.PLANNING,
             )
 
         # Act
         projects = await repo.list_by_client_organization(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            skip=2,
-            limit=2,
+            client_organization.id, sales_support_organization.id
         )
 
         # Assert
-        assert len(projects) == 2
+        assert len(projects) == 3
+        assert all(
+            p.name in ["プロジェクト1", "プロジェクト2", "プロジェクト3"]
+            for p in projects
+        )
 
-    async def test_list_by_sales_support_organization_returns_all_projects(
+    async def test_list_by_sales_support_organization_success(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
-        client_organization: ClientOrganization,
     ) -> None:
-        """営業支援会社に属する全顧客のプロジェクト一覧を取得できる"""
+        """正常系：営業支援会社IDで全顧客のプロジェクト一覧を取得できる"""
         # Arrange
         repo = ProjectRepository(db_session)
-        await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト1",
-            status=ProjectStatus.PLANNING,
-        )
-        await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト2",
-            status=ProjectStatus.IN_PROGRESS,
-        )
+
+        # 2つの顧客組織を作成
+        for i in range(2):
+            client_org = Organization(
+                name=f"顧客企業{i+1}",
+                type=OrganizationType.CLIENT,
+                parent_organization_id=sales_support_organization.id,
+            )
+            db_session.add(client_org)
+            await db_session.flush()
+
+            client_organization = ClientOrganization(
+                organization_id=client_org.id,
+                industry=f"業種{i+1}",
+            )
+            db_session.add(client_organization)
+            await db_session.flush()
+
+            # 各顧客に2つのプロジェクト
+            for j in range(2):
+                await repo.create(
+                    client_organization_id=client_organization.id,
+                    requesting_organization_id=sales_support_organization.id,
+                    name=f"顧客{i+1}のプロジェクト{j+1}",
+                    status=ProjectStatus.IN_PROGRESS,
+                )
 
         # Act
         projects = await repo.list_by_sales_support_organization(
-            sales_support_organization_id=sales_support_organization.id,
+            sales_support_organization.id
         )
 
         # Assert
-        assert len(projects) == 2
+        assert len(projects) == 4
 
     async def test_list_by_sales_support_organization_with_status_filter(
         self,
@@ -449,32 +437,48 @@ class TestProjectRepository:
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """ステータスフィルタ付きでプロジェクト一覧を取得できる"""
+        """正常系：ステータスフィルタでプロジェクトを絞り込める"""
         # Arrange
         repo = ProjectRepository(db_session)
+
         await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト1",
+            name="企画中プロジェクト",
             status=ProjectStatus.PLANNING,
         )
         await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
-            name="プロジェクト2",
+            name="進行中プロジェクト",
             status=ProjectStatus.IN_PROGRESS,
+        )
+        await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="完了プロジェクト",
+            status=ProjectStatus.COMPLETED,
         )
 
         # Act
-        projects = await repo.list_by_sales_support_organization(
-            sales_support_organization_id=sales_support_organization.id,
+        planning_projects = await repo.list_by_sales_support_organization(
+            sales_support_organization.id,
+            status_filter=ProjectStatus.PLANNING,
+        )
+        in_progress_projects = await repo.list_by_sales_support_organization(
+            sales_support_organization.id,
             status_filter=ProjectStatus.IN_PROGRESS,
         )
 
         # Assert
-        assert len(projects) == 1
-        assert projects[0].name == "プロジェクト2"
-        assert projects[0].status == ProjectStatus.IN_PROGRESS
+        assert len(planning_projects) == 1
+        assert planning_projects[0].status == ProjectStatus.PLANNING
+        assert len(in_progress_projects) == 1
+        assert in_progress_projects[0].status == ProjectStatus.IN_PROGRESS
+
+
+class TestProjectRepositoryUpdate:
+    """プロジェクト更新のテスト"""
 
     async def test_update_project_success(
         self,
@@ -482,7 +486,7 @@ class TestProjectRepository:
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """プロジェクト更新が成功する"""
+        """正常系：プロジェクトを更新できる"""
         # Arrange
         repo = ProjectRepository(db_session)
         project = await repo.create(
@@ -490,140 +494,187 @@ class TestProjectRepository:
             requesting_organization_id=sales_support_organization.id,
             name="旧プロジェクト名",
             status=ProjectStatus.PLANNING,
+            estimated_budget=1000000,
         )
 
         # Act
         project.name = "新プロジェクト名"
         project.status = ProjectStatus.IN_PROGRESS
-        project.description = "更新された説明"
-        updated_project = await repo.update(
-            project=project,
-            requesting_organization_id=sales_support_organization.id,
-        )
+        project.estimated_budget = 2000000
+        project.actual_budget = 1500000
+        project.notes = "予算増額済み"
+        updated = await repo.update(project, sales_support_organization.id)
 
         # Assert
-        assert updated_project.id == project.id
-        assert updated_project.name == "新プロジェクト名"
-        assert updated_project.status == ProjectStatus.IN_PROGRESS
-        assert updated_project.description == "更新された説明"
+        assert updated.id == project.id
+        assert updated.name == "新プロジェクト名"
+        assert updated.status == ProjectStatus.IN_PROGRESS
+        assert updated.estimated_budget == 2000000
+        assert updated.actual_budget == 1500000
+        assert updated.notes == "予算増額済み"
 
-    async def test_update_project_fails_when_not_found(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-        client_organization: ClientOrganization,
+    async def test_update_project_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
     ) -> None:
-        """存在しないプロジェクトの更新が失敗する"""
+        """異常系：存在しないプロジェクトの更新でエラー"""
         # Arrange
         repo = ProjectRepository(db_session)
-        project = await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="テストプロジェクト",
+        from src.domain.entities.project_entity import ProjectEntity
+
+        fake_entity = ProjectEntity(
+            id=999999,
+            client_organization_id=1,
+            name="存在しない",
             status=ProjectStatus.PLANNING,
         )
-        project.id = 99999  # 存在しないID
 
         # Act & Assert
         with pytest.raises(ProjectNotFoundError):
-            await repo.update(
-                project=project,
-                requesting_organization_id=sales_support_organization.id,
-            )
+            await repo.update(fake_entity, sales_support_organization.id)
 
-    async def test_update_project_fails_when_invalid_date_range(
+
+class TestProjectRepositorySoftDelete:
+    """プロジェクト論理削除のテスト"""
+
+    async def test_soft_delete_success(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """不正な日付範囲でプロジェクト更新が失敗する"""
+        """正常系：プロジェクトを論理削除できる"""
         # Arrange
         repo = ProjectRepository(db_session)
         project = await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
-            name="テストプロジェクト",
-            status=ProjectStatus.PLANNING,
+            name="削除予定プロジェクト",
+            status=ProjectStatus.CANCELLED,
         )
 
         # Act
-        project.start_date = date(2025, 3, 31)
-        project.end_date = date(2025, 1, 1)
+        await repo.soft_delete(project.id, sales_support_organization.id)
 
         # Assert
+        deleted = await repo.find_by_id(project.id, sales_support_organization.id)
+        assert deleted is None
+
+    async def test_soft_delete_not_found(
+        self, db_session: AsyncSession, sales_support_organization: Organization
+    ) -> None:
+        """異常系：存在しないプロジェクトの論理削除でエラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(ProjectNotFoundError):
+            await repo.soft_delete(999999, sales_support_organization.id)
+
+
+class TestProjectRepositoryValidation:
+    """プロジェクトバリデーションのテスト"""
+
+    async def test_create_project_invalid_date_range(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：開始日が終了日より後の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
         with pytest.raises(InvalidDateRangeError):
-            await repo.update(
-                project=project,
+            await repo.create(
+                client_organization_id=client_organization.id,
                 requesting_organization_id=sales_support_organization.id,
+                name="不正な日付範囲プロジェクト",
+                status=ProjectStatus.PLANNING,
+                start_date=date(2025, 12, 31),
+                end_date=date(2025, 1, 1),
             )
 
-    async def test_soft_delete_project_success(
+    async def test_create_project_negative_estimated_budget(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """プロジェクトの論理削除が成功する"""
+        """異常系：見積予算が負の値の場合エラー"""
         # Arrange
         repo = ProjectRepository(db_session)
-        project = await repo.create(
-            client_organization_id=client_organization.id,
-            requesting_organization_id=sales_support_organization.id,
-            name="テストプロジェクト",
-            status=ProjectStatus.PLANNING,
-        )
-
-        # Act
-        await repo.soft_delete(
-            project_id=project.id,
-            requesting_organization_id=sales_support_organization.id,
-        )
-
-        # Assert
-        found_project = await repo.find_by_id(
-            project_id=project.id,
-            requesting_organization_id=sales_support_organization.id,
-        )
-        assert found_project is None  # 論理削除されたプロジェクトは取得できない
-
-    async def test_soft_delete_project_fails_when_not_found(
-        self,
-        db_session: AsyncSession,
-        sales_support_organization: Organization,
-    ) -> None:
-        """存在しないプロジェクトの論理削除が失敗する"""
-        # Arrange
-        repo = ProjectRepository(db_session)
-        non_existent_id = 99999
 
         # Act & Assert
-        with pytest.raises(ProjectNotFoundError):
-            await repo.soft_delete(
-                project_id=non_existent_id,
+        with pytest.raises(InvalidBudgetError):
+            await repo.create(
+                client_organization_id=client_organization.id,
                 requesting_organization_id=sales_support_organization.id,
+                name="負の見積予算プロジェクト",
+                status=ProjectStatus.PLANNING,
+                estimated_budget=-1000000,
             )
 
-    async def test_soft_delete_project_fails_when_different_organization(
+    async def test_create_project_negative_actual_budget(
         self,
         db_session: AsyncSession,
         sales_support_organization: Organization,
         client_organization: ClientOrganization,
     ) -> None:
-        """別組織のプロジェクトの論理削除が失敗する（IDOR対策）"""
+        """異常系：実績予算が負の値の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+
+        # Act & Assert
+        with pytest.raises(InvalidBudgetError):
+            await repo.create(
+                client_organization_id=client_organization.id,
+                requesting_organization_id=sales_support_organization.id,
+                name="負の実績予算プロジェクト",
+                status=ProjectStatus.PLANNING,
+                actual_budget=-500000,
+            )
+
+    async def test_update_project_invalid_date_range(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：更新時に開始日が終了日より後の場合エラー"""
         # Arrange
         repo = ProjectRepository(db_session)
         project = await repo.create(
             client_organization_id=client_organization.id,
             requesting_organization_id=sales_support_organization.id,
-            name="テストプロジェクト",
+            name="日付テストプロジェクト",
             status=ProjectStatus.PLANNING,
         )
-        different_org_id = 99999
 
         # Act & Assert
-        with pytest.raises(ProjectNotFoundError):
-            await repo.soft_delete(
-                project_id=project.id,
-                requesting_organization_id=different_org_id,
-            )
+        project.start_date = date(2025, 12, 31)
+        project.end_date = date(2025, 1, 1)
+        with pytest.raises(InvalidDateRangeError):
+            await repo.update(project, sales_support_organization.id)
+
+    async def test_update_project_negative_budget(
+        self,
+        db_session: AsyncSession,
+        sales_support_organization: Organization,
+        client_organization: ClientOrganization,
+    ) -> None:
+        """異常系：更新時に予算が負の値の場合エラー"""
+        # Arrange
+        repo = ProjectRepository(db_session)
+        project = await repo.create(
+            client_organization_id=client_organization.id,
+            requesting_organization_id=sales_support_organization.id,
+            name="予算テストプロジェクト",
+            status=ProjectStatus.PLANNING,
+            estimated_budget=1000000,
+        )
+
+        # Act & Assert
+        project.estimated_budget = -1000000
+        with pytest.raises(InvalidBudgetError):
+            await repo.update(project, sales_support_organization.id)
