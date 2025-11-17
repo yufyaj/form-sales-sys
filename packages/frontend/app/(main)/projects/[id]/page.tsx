@@ -36,20 +36,32 @@ export default async function ProjectDetailPage({
  * プロジェクト詳細データ取得コンポーネント
  */
 async function ProjectDetailWrapper({ projectId }: { projectId: number }) {
-  // TODO: バックエンドAPIからプロジェクト詳細を取得
-  // const project = await fetchProject(projectId)
+  let project
+  let clientOrganizationName = '読み込み中...'
 
-  // 仮のデータ
-  const project = {
-    id: projectId,
-    name: 'サンプルプロジェクト',
-    client_organization_name: '株式会社サンプル',
-    status: 'active' as const,
-    start_date: '2025-04-01',
-    end_date: '2025-09-30',
-    description: 'これはサンプルプロジェクトの説明です。',
-    created_at: '2025-01-15T10:00:00Z',
-    updated_at: '2025-01-15T10:00:00Z',
+  try {
+    const { getProject } = await import('@/lib/api/projects')
+    const { getClientOrganization } = await import('@/lib/api/client-organizations')
+
+    project = await getProject(projectId)
+
+    // 顧客組織情報を取得
+    try {
+      const clientOrg = await getClientOrganization(project.client_organization_id)
+      clientOrganizationName = clientOrg.name
+    } catch (error) {
+      console.error('Failed to fetch client organization:', error)
+      clientOrganizationName = `ID: ${project.client_organization_id}`
+    }
+  } catch (error) {
+    console.error('Failed to fetch project:', error)
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-destructive">
+          プロジェクトの読み込みに失敗しました
+        </div>
+      </div>
+    )
   }
 
   const statusInfo = getStatusInfo(project.status)
@@ -64,7 +76,7 @@ async function ProjectDetailWrapper({ projectId }: { projectId: number }) {
             <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
           </div>
           <p className="text-muted-foreground">
-            顧客企業: {project.client_organization_name}
+            顧客企業: {clientOrganizationName}
           </p>
         </div>
         <div className="flex gap-2">
@@ -136,7 +148,7 @@ async function ProjectDetailWrapper({ projectId }: { projectId: number }) {
  */
 function getStatusInfo(status: 'planning' | 'active' | 'completed' | 'cancelled'): {
   label: string
-  variant: 'success' | 'warning' | 'default' | 'secondary'
+  variant: 'success' | 'warning' | 'default' | 'info'
 } {
   switch (status) {
     case 'planning':
@@ -144,7 +156,7 @@ function getStatusInfo(status: 'planning' | 'active' | 'completed' | 'cancelled'
     case 'active':
       return { label: '進行中', variant: 'success' }
     case 'completed':
-      return { label: '完了', variant: 'secondary' }
+      return { label: '完了', variant: 'info' }
     case 'cancelled':
       return { label: 'キャンセル', variant: 'warning' }
   }

@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button'
 export interface Project {
   id: number
   name: string
-  client_organization_name?: string
+  client_organization_id: number
   status: 'planning' | 'active' | 'completed' | 'cancelled'
   start_date: string | null
   end_date: string | null
@@ -26,14 +26,14 @@ export interface ProjectListProps {
  */
 const getStatusInfo = (
   status: Project['status']
-): { label: string; variant: 'success' | 'warning' | 'default' | 'secondary' } => {
+): { label: string; variant: 'success' | 'warning' | 'default' | 'info' } => {
   switch (status) {
     case 'planning':
       return { label: '企画中', variant: 'default' }
     case 'active':
       return { label: '進行中', variant: 'success' }
     case 'completed':
-      return { label: '完了', variant: 'secondary' }
+      return { label: '完了', variant: 'info' }
     case 'cancelled':
       return { label: 'キャンセル', variant: 'warning' }
   }
@@ -79,16 +79,16 @@ export default function ProjectList({
       align: 'left',
     },
     {
-      key: 'client_organization_name',
-      header: '顧客企業',
+      key: 'client_organization_id',
+      header: '顧客企業ID',
       align: 'left',
-      render: (project) => project.client_organization_name || '-',
+      render: (project: Project) => `ID: ${project.client_organization_id}`,
     },
     {
       key: 'status',
       header: 'ステータス',
       align: 'center',
-      render: (project) => {
+      render: (project: Project) => {
         const { label, variant } = getStatusInfo(project.status)
         return <Badge variant={variant}>{label}</Badge>
       },
@@ -97,19 +97,19 @@ export default function ProjectList({
       key: 'start_date',
       header: '開始日',
       align: 'center',
-      render: (project) => formatDate(project.start_date),
+      render: (project: Project) => formatDate(project.start_date),
     },
     {
       key: 'end_date',
       header: '終了日',
       align: 'center',
-      render: (project) => formatDate(project.end_date),
+      render: (project: Project) => formatDate(project.end_date),
     },
     {
       key: 'created_at',
       header: '作成日',
       align: 'center',
-      render: (project) => formatDate(project.created_at),
+      render: (project: Project) => formatDate(project.created_at),
     },
   ]
 

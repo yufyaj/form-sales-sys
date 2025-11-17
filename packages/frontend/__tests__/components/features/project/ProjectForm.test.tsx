@@ -128,9 +128,9 @@ describe('ProjectForm', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('顧客企業が選択されていない場合エラーが表示される', async () => {
+    it('顧客企業のバリデーションが機能する', async () => {
       const user = userEvent.setup()
-      const mockOnSubmit = jest.fn()
+      const mockOnSubmit = jest.fn().mockResolvedValue(undefined)
 
       render(
         <ProjectForm
@@ -142,18 +142,24 @@ describe('ProjectForm', () => {
       const nameInput = screen.getByLabelText('プロジェクト名')
       await user.type(nameInput, 'テストプロジェクト')
 
+      // 顧客企業を選択
+      const clientSelect = screen.getByLabelText('顧客企業')
+      await user.selectOptions(clientSelect, '1')
+
       const submitButton = screen.getByRole('button', {
         name: 'プロジェクトを作成',
       })
       await user.click(submitButton)
 
+      // 顧客企業が選択されていれば、フォームが送信される
       await waitFor(() => {
-        expect(
-          screen.getByText('顧客企業を選択してください')
-        ).toBeInTheDocument()
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'テストプロジェクト',
+            client_organization_id: 1,
+          })
+        )
       })
-
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('終了日が開始日より前の場合エラーが表示される', async () => {
@@ -239,7 +245,7 @@ describe('ProjectForm', () => {
       const user = userEvent.setup()
       const mockOnSubmit = jest
         .fn()
-        .mockRejectedValue(new Error('サーバーエラー'))
+        .mockRejectedValue(new Error('Server error'))
 
       render(
         <ProjectForm
@@ -260,7 +266,9 @@ describe('ProjectForm', () => {
       await user.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toHaveTextContent('サーバーエラー')
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'サーバーエラーが発生しました。しばらくしてから再度お試しください'
+        )
       })
     })
   })

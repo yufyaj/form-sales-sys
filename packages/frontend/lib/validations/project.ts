@@ -18,19 +18,16 @@ export type ProjectStatusType = (typeof ProjectStatus)[keyof typeof ProjectStatu
 export const projectSchema = z
   .object({
     name: z
-      .string()
+      .string({ message: 'プロジェクト名を入力してください' })
       .trim()
       .min(1, 'プロジェクト名を入力してください')
       .max(255, 'プロジェクト名は255文字以内で入力してください'),
     client_organization_id: z
-      .number({
-        required_error: '顧客企業を選択してください',
-        invalid_type_error: '顧客企業を選択してください',
-      })
+      .number({ message: '顧客企業を選択してください' })
       .int('無効な顧客企業IDです')
       .positive('顧客企業を選択してください'),
     status: z.enum(['planning', 'active', 'completed', 'cancelled'], {
-      required_error: 'ステータスを選択してください',
+      message: 'ステータスを選択してください',
     }),
     start_date: z.string().optional().nullable(),
     end_date: z.string().optional().nullable(),
@@ -70,9 +67,7 @@ export const projectUpdateSchema = z
       .max(255, 'プロジェクト名は255文字以内で入力してください')
       .optional(),
     client_organization_id: z
-      .number({
-        invalid_type_error: '顧客企業を選択してください',
-      })
+      .number({ message: '顧客企業を選択してください' })
       .int('無効な顧客企業IDです')
       .positive('顧客企業を選択してください')
       .optional(),

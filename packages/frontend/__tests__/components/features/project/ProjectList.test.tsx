@@ -18,7 +18,7 @@ const mockProjects: Project[] = [
   {
     id: 1,
     name: 'プロジェクトA',
-    client_organization_name: '株式会社A',
+    client_organization_id: 1,
     status: 'planning',
     start_date: '2025-04-01',
     end_date: '2025-09-30',
@@ -27,7 +27,7 @@ const mockProjects: Project[] = [
   {
     id: 2,
     name: 'プロジェクトB',
-    client_organization_name: '株式会社B',
+    client_organization_id: 2,
     status: 'active',
     start_date: '2025-02-01',
     end_date: null,
@@ -36,7 +36,7 @@ const mockProjects: Project[] = [
   {
     id: 3,
     name: 'プロジェクトC',
-    client_organization_name: '株式会社C',
+    client_organization_id: 3,
     status: 'completed',
     start_date: '2024-10-01',
     end_date: '2024-12-31',
@@ -59,12 +59,12 @@ describe('ProjectList', () => {
       expect(screen.getByText('プロジェクトC')).toBeInTheDocument()
     })
 
-    it('顧客企業名が表示される', () => {
+    it('顧客企業IDが表示される', () => {
       render(<ProjectList projects={mockProjects} />)
 
-      expect(screen.getByText('株式会社A')).toBeInTheDocument()
-      expect(screen.getByText('株式会社B')).toBeInTheDocument()
-      expect(screen.getByText('株式会社C')).toBeInTheDocument()
+      expect(screen.getByText('ID: 1')).toBeInTheDocument()
+      expect(screen.getByText('ID: 2')).toBeInTheDocument()
+      expect(screen.getByText('ID: 3')).toBeInTheDocument()
     })
 
     it('ステータスが日本語で表示される', () => {

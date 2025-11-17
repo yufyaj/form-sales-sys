@@ -33,13 +33,15 @@ export default async function ProjectsPage() {
  * プロジェクト一覧データ取得コンポーネント
  */
 async function ProjectListWrapper() {
-  // TODO: バックエンドAPIからプロジェクト一覧を取得
-  // const projects = await fetchProjects()
-
-  // 仮のデータ（後でAPIから取得するように変更）
-  const projects = []
-
-  return <ProjectList projects={projects} />
+  try {
+    const { listProjects } = await import('@/lib/api/projects')
+    const response = await listProjects()
+    return <ProjectList projects={response.projects} />
+  } catch (error) {
+    console.error('Failed to fetch projects:', error)
+    // エラー時は空の配列を表示
+    return <ProjectList projects={[]} />
+  }
 }
 
 /**
