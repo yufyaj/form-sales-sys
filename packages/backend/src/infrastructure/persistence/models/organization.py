@@ -62,6 +62,11 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    sales_company_staff: Mapped[list["SalesCompanyStaff"]] = relationship(
+        "SalesCompanyStaff",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
     lists: Mapped[list["List"]] = relationship(
         "List", back_populates="organization", cascade="all, delete-orphan"
     )

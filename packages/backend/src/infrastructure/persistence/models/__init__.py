@@ -12,7 +12,9 @@ from .list import List
 from .list_item import ListItem
 from .list_item_custom_value import ListItemCustomValue
 from .organization import Organization, OrganizationType
+from .project import Project, ProjectPriority, ProjectStatus
 from .role import Permission, Role
+from .sales_company_staff import SalesCompanyStaff
 from .user import User
 from .user_role import RolePermission, UserRole
 
@@ -31,6 +33,10 @@ __all__ = [
     "RolePermission",
     "ClientOrganization",
     "ClientContact",
+    "SalesCompanyStaff",
+    "Project",
+    "ProjectStatus",
+    "ProjectPriority",
     # Phase3: List Management
     "List",
     "CustomColumnSetting",
