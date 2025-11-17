@@ -176,7 +176,7 @@ class SalesCompanyStaffNotFoundError(DomainException):
         super().__init__("Sales company staff not found")
 
 
-class ProjectNotFoundError(DomainException):
+class ProjectNotFoundError(ResourceNotFoundException):
     """プロジェクトが見つからない場合の例外"""
 
     def __init__(self, project_id: int) -> None:
