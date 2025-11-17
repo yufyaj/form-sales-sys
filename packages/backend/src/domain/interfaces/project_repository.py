@@ -20,28 +20,48 @@ class IProjectRepository(ABC):
     @abstractmethod
     async def create(
         self,
-        name: str,
         client_organization_id: int,
-        sales_support_organization_id: int,
-        status: ProjectStatus = ProjectStatus.PLANNING,
+        requesting_organization_id: int,
+        name: str,
+        status: ProjectStatus,
+        description: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
-        description: str | None = None,
+        estimated_budget: int | None = None,
+        actual_budget: int | None = None,
+        priority: str | None = None,
+        owner_user_id: int | None = None,
+        notes: str | None = None,
     ) -> ProjectEntity:
         """
-        プロジェクトを作成
+        プロジェクトを作成（マルチテナント対応）
 
         Args:
-            name: プロジェクト名
             client_organization_id: 顧客組織ID
-            sales_support_organization_id: 営業支援会社の組織ID（テナント分離用）
-            status: ステータス（デフォルト: PLANNING）
-            start_date: 開始日
-            end_date: 終了日
-            description: 説明
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
+            name: プロジェクト名
+            status: プロジェクトステータス
+            description: プロジェクト説明
+            start_date: 開始予定日
+            end_date: 終了予定日
+            estimated_budget: 見積予算（円）
+            actual_budget: 実績予算（円）
+            priority: プロジェクト優先度
+            owner_user_id: プロジェクトオーナー（担当ユーザー）
+            notes: 備考
 
         Returns:
             ProjectEntity: 作成されたプロジェクトエンティティ
+
+        Raises:
+            ClientOrganizationNotFoundError: 顧客組織が見つからない場合、
+                                             またはrequesting_organization_idと一致しない場合
+            UserNotFoundError: owner_user_idが指定され、そのユーザーが見つからない場合、
+                              またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR（Insecure Direct Object Reference）脆弱性対策として、
+            requesting_organization_idで必ずテナント分離を行います。
         """
         pass
 
@@ -64,30 +84,6 @@ class IProjectRepository(ABC):
         Note:
             IDOR（Insecure Direct Object Reference）脆弱性対策として、
             requesting_organization_idで必ずテナント分離を行います。
-        """
-        pass
-
-    @abstractmethod
-    async def list_by_sales_support_organization(
-        self,
-        sales_support_organization_id: int,
-        skip: int = 0,
-        limit: int = 100,
-        status: ProjectStatus | None = None,
-        include_deleted: bool = False,
-    ) -> list[ProjectEntity]:
-        """
-        営業支援会社に属するプロジェクトの一覧を取得
-
-        Args:
-            sales_support_organization_id: 営業支援会社の組織ID
-            skip: スキップする件数（ページネーション用）
-            limit: 取得する最大件数
-            status: ステータスでフィルタリング（指定しない場合は全て）
-            include_deleted: 削除済みプロジェクトを含めるか
-
-        Returns:
-            list[ProjectEntity]: プロジェクトエンティティのリスト
         """
         pass
 
@@ -116,6 +112,30 @@ class IProjectRepository(ABC):
         Note:
             IDOR（Insecure Direct Object Reference）脆弱性対策として、
             requesting_organization_idで必ずテナント分離を行います。
+        """
+        pass
+
+    @abstractmethod
+    async def list_by_sales_support_organization(
+        self,
+        sales_support_organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        status_filter: ProjectStatus | None = None,
+        include_deleted: bool = False,
+    ) -> list[ProjectEntity]:
+        """
+        営業支援会社に属する全顧客のプロジェクト一覧を取得
+
+        Args:
+            sales_support_organization_id: 営業支援会社の組織ID
+            skip: スキップする件数（ページネーション用）
+            limit: 取得する最大件数
+            status_filter: ステータスでフィルタリング（指定しない場合は全て）
+            include_deleted: 削除済みプロジェクトを含めるか
+
+        Returns:
+            list[ProjectEntity]: プロジェクトエンティティのリスト
         """
         pass
 

@@ -66,3 +66,31 @@ export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
 }
+
+/**
+ * URLの安全性を検証
+ * javascript:, data:, vbscript: などの危険なプロトコルを除外してXSS攻撃を防止
+ *
+ * @param url - 検証するURL文字列
+ * @returns 安全なURLの場合true、危険な場合やnull/undefinedの場合false
+ */
+export function isSafeUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+
+  const urlLower = url.toLowerCase().trim()
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:']
+
+  return !dangerousProtocols.some(protocol => urlLower.startsWith(protocol))
+}
+
+/**
+ * メールアドレスをサニタイズ
+ * mailto:リンクに使用する際に、危険な文字を除去してXSS攻撃を防止
+ *
+ * @param email - サニタイズするメールアドレス
+ * @returns サニタイズされたメールアドレス
+ */
+export function sanitizeEmail(email: string): string {
+  // メールアドレスの形式を再検証し、危険な文字を除去
+  return email.replace(/[<>'"]/g, '')
+}

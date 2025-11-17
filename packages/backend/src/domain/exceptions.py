@@ -92,6 +92,26 @@ class ValidationException(DomainException):
     pass
 
 
+class InvalidDateRangeError(ValidationException):
+    """日付範囲が不正な場合の例外"""
+
+    def __init__(self, start_date: str, end_date: str) -> None:
+        super().__init__(
+            f"開始日（{start_date}）は終了日（{end_date}）より前である必要があります",
+            {"start_date": start_date, "end_date": end_date},
+        )
+
+
+class InvalidBudgetError(ValidationException):
+    """予算値が不正な場合の例外"""
+
+    def __init__(self, field_name: str, value: int) -> None:
+        super().__init__(
+            f"{field_name}は0以上である必要があります（現在値: {value}）",
+            {"field_name": field_name, "value": value},
+        )
+
+
 class AuthorizationException(DomainException):
     """認可エラーの基底例外"""
 
@@ -148,6 +168,14 @@ class ClientContactNotFoundError(DomainException):
         super().__init__(f"Client contact with id {client_contact_id} not found")
 
 
+class SalesCompanyStaffNotFoundError(DomainException):
+    """営業支援会社担当者が見つからない場合の例外"""
+
+    def __init__(self, staff_id: int | None = None) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Sales company staff not found")
+
+
 class ProjectNotFoundError(ResourceNotFoundException):
     """プロジェクトが見つからない場合の例外"""
 
@@ -161,6 +189,13 @@ class BusinessRuleViolationException(DomainException):
     pass
 
 
+class ProjectCannotBeEditedError(BusinessRuleViolationException):
+    """プロジェクトが編集不可能な状態の場合の例外"""
+
+    def __init__(self, project_id: int, reason: str = "Project is archived or deleted") -> None:
+        super().__init__(f"Project {project_id} cannot be edited: {reason}")
+
+
 # ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
@@ -172,3 +207,5 @@ InvalidCredentialsException = InvalidCredentialsError
 InactiveUserException = InactiveUserError
 OrganizationNotFoundException = OrganizationNotFoundError
 RoleNotFoundException = RoleNotFoundError
+ClientOrganizationNotFoundException = ClientOrganizationNotFoundError
+ClientContactNotFoundException = ClientContactNotFoundError

@@ -4,7 +4,9 @@
 プロジェクトのCRUD操作のエンドポイントを提供します
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.api.dependencies import get_current_active_user
@@ -12,17 +14,38 @@ from src.app.core.database import get_db
 from src.application.schemas.project import (
     ProjectCreateRequest,
     ProjectListResponse,
+    ProjectPriorityEnum,
     ProjectResponse,
+    ProjectStatusEnum,
     ProjectUpdateRequest,
 )
-from src.domain.entities.project_entity import ProjectStatus
+from src.application.use_cases.project_use_cases import ProjectUseCases
+from src.domain.entities.project_entity import ProjectEntity
 from src.domain.entities.user_entity import UserEntity
-from src.domain.exceptions import ProjectNotFoundError
+from src.domain.interfaces.project_repository import IProjectRepository
 from src.infrastructure.persistence.repositories.project_repository import (
     ProjectRepository,
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+async def get_project_use_cases(
+    session: AsyncSession = Depends(get_db),
+) -> ProjectUseCases:
+    """
+    プロジェクトユースケースの依存性注入
+
+    Args:
+        session: データベースセッション
+
+    Returns:
+        ProjectUseCases: プロジェクトユースケースのインスタンス
+    """
+    project_repo: IProjectRepository = ProjectRepository(session)
+    return ProjectUseCases(
+        project_repository=project_repo,
+    )
 
 
 @router.post(
@@ -35,32 +58,28 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 async def create_project(
     request: ProjectCreateRequest,
     current_user: UserEntity = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
 ) -> ProjectResponse:
     """
     新規プロジェクトを作成
 
-    認証されたユーザーの所属組織でプロジェクトを作成します。
-
-    - **name**: プロジェクト名
+    - **name**: プロジェクト名（最大255文字）
+    - **description**: プロジェクト説明（省略可）
     - **client_organization_id**: 顧客組織ID
-    - **status**: ステータス（デフォルト: planning）
-    - **start_date**: 開始日（オプション）
-    - **end_date**: 終了日（オプション）
-    - **description**: 説明（オプション）
+    - **status**: プロジェクトステータス（デフォルト: planning）
+    - **start_date**: 開始予定日（省略可）
+    - **end_date**: 終了予定日（省略可）
+    - **estimated_budget**: 見積予算（円、省略可）
+    - **actual_budget**: 実績予算（円、省略可）
+    - **priority**: プロジェクト優先度（省略可）
+    - **owner_user_id**: プロジェクトオーナー（担当ユーザーID、省略可）
+    - **notes**: 備考（省略可）
     """
-    repo = ProjectRepository(db)
-    project = await repo.create(
-        name=request.name,
-        client_organization_id=request.client_organization_id,
-        sales_support_organization_id=current_user.organization_id,
-        status=request.status,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        description=request.description,
+    project = await use_cases.create_project(
+        requesting_organization_id=current_user.organization_id,
+        request=request,
     )
-    await db.commit()
-    return ProjectResponse.model_validate(project)
+    return _to_response(project)
 
 
 @router.get(
@@ -72,96 +91,94 @@ async def create_project(
 async def get_project(
     project_id: int,
     current_user: UserEntity = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
 ) -> ProjectResponse:
     """
     プロジェクトを取得
 
-    認証されたユーザーの所属組織のプロジェクトのみ取得できます。
-
     - **project_id**: プロジェクトID
     """
-    repo = ProjectRepository(db)
-    project = await repo.find_by_id(project_id, current_user.organization_id)
-
-    if project is None:
-        raise ProjectNotFoundError(project_id)
-
-    return ProjectResponse.model_validate(project)
-
-
-@router.get(
-    "",
-    response_model=ProjectListResponse,
-    summary="プロジェクト一覧取得",
-    description="プロジェクト一覧を取得します。認証が必要です。",
-)
-async def list_projects(
-    current_user: UserEntity = Depends(get_current_active_user),
-    skip: int = Query(0, ge=0, description="スキップする件数"),
-    limit: int = Query(100, ge=1, le=1000, description="取得する最大件数"),
-    status: ProjectStatus | None = Query(
-        None, description="ステータスでフィルタリング（オプション）"
-    ),
-    db: AsyncSession = Depends(get_db),
-) -> ProjectListResponse:
-    """
-    プロジェクト一覧を取得
-
-    認証されたユーザーの所属組織のプロジェクト一覧を取得します。
-
-    - **skip**: スキップする件数（デフォルト: 0）
-    - **limit**: 取得する最大件数（デフォルト: 100、最大: 1000）
-    - **status**: ステータスでフィルタリング（オプション）
-    """
-    repo = ProjectRepository(db)
-    projects = await repo.list_by_sales_support_organization(
-        current_user.organization_id, skip=skip, limit=limit, status=status
+    project = await use_cases.get_project(
+        project_id=project_id,
+        requesting_organization_id=current_user.organization_id,
     )
-
-    return ProjectListResponse(
-        projects=[ProjectResponse.model_validate(p) for p in projects],
-        total=len(projects),  # TODO: 総件数を取得するメソッドを追加
-        skip=skip,
-        limit=limit,
-    )
+    return _to_response(project)
 
 
 @router.get(
     "/client/{client_organization_id}",
     response_model=ProjectListResponse,
-    summary="顧客組織のプロジェクト一覧取得",
-    description="指定された顧客組織に属するプロジェクト一覧を取得します。認証が必要です。",
+    summary="顧客別プロジェクト一覧取得",
+    description="指定された顧客組織に属するプロジェクト一覧を取得します。",
 )
 async def list_projects_by_client(
     client_organization_id: int,
     current_user: UserEntity = Depends(get_current_active_user),
-    skip: int = Query(0, ge=0, description="スキップする件数"),
-    limit: int = Query(100, ge=1, le=1000, description="取得する最大件数"),
-    db: AsyncSession = Depends(get_db),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
+    page: Annotated[int, Query(ge=1, description="ページ番号（1始まり）")] = 1,
+    page_size: Annotated[
+        int, Query(ge=1, le=100, description="ページサイズ（最大100）")
+    ] = 20,
 ) -> ProjectListResponse:
     """
-    顧客組織のプロジェクト一覧を取得
-
-    認証されたユーザーの所属組織のプロジェクトのみ取得できます。
+    顧客組織に属するプロジェクト一覧を取得
 
     - **client_organization_id**: 顧客組織ID
-    - **skip**: スキップする件数（デフォルト: 0）
-    - **limit**: 取得する最大件数（デフォルト: 100、最大: 1000）
+    - **page**: ページ番号（デフォルト: 1）
+    - **page_size**: ページサイズ（デフォルト: 20、最大: 100）
     """
-    repo = ProjectRepository(db)
-    projects = await repo.list_by_client_organization(
-        client_organization_id,
-        current_user.organization_id,
-        skip=skip,
-        limit=limit,
+    projects, total = await use_cases.list_projects_by_client(
+        client_organization_id=client_organization_id,
+        requesting_organization_id=current_user.organization_id,
+        page=page,
+        page_size=page_size,
     )
 
     return ProjectListResponse(
-        projects=[ProjectResponse.model_validate(p) for p in projects],
-        total=len(projects),  # TODO: 総件数を取得するメソッドを追加
-        skip=skip,
-        limit=limit,
+        projects=[_to_response(project) for project in projects],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get(
+    "",
+    response_model=ProjectListResponse,
+    summary="営業支援会社別プロジェクト一覧取得",
+    description="営業支援会社に属する全顧客のプロジェクト一覧を取得します。ステータスフィルタに対応しています。",
+)
+async def list_projects_by_sales_support(
+    current_user: UserEntity = Depends(get_current_active_user),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
+    status: Annotated[
+        ProjectStatusEnum | None,
+        Query(description="プロジェクトステータス（フィルタ用、省略時は全ステータス）"),
+    ] = None,
+    page: Annotated[int, Query(ge=1, description="ページ番号（1始まり）")] = 1,
+    page_size: Annotated[
+        int, Query(ge=1, le=100, description="ページサイズ（最大100）")
+    ] = 20,
+) -> ProjectListResponse:
+    """
+    営業支援会社に属する全顧客のプロジェクト一覧を取得
+
+    - **status**: プロジェクトステータス（フィルタ用、省略時は全ステータス）
+    - **page**: ページ番号（デフォルト: 1）
+    - **page_size**: ページサイズ（デフォルト: 20、最大: 100）
+    """
+    projects, total = await use_cases.list_projects_by_sales_support(
+        sales_support_organization_id=current_user.organization_id,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+
+    return ProjectListResponse(
+        projects=[_to_response(project) for project in projects],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 
@@ -169,66 +186,83 @@ async def list_projects_by_client(
     "/{project_id}",
     response_model=ProjectResponse,
     summary="プロジェクト更新",
-    description="プロジェクト情報を更新します。認証が必要です。",
+    description="プロジェクト情報を更新します。",
 )
 async def update_project(
     project_id: int,
     request: ProjectUpdateRequest,
     current_user: UserEntity = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
 ) -> ProjectResponse:
     """
     プロジェクト情報を更新
 
-    認証されたユーザーの所属組織のプロジェクトのみ更新できます。
-
     - **project_id**: プロジェクトID
-    - **request**: 更新内容（部分更新可能）
+    - **name**: プロジェクト名（省略可）
+    - **description**: プロジェクト説明（省略可）
+    - **status**: プロジェクトステータス（省略可）
+    - **start_date**: 開始予定日（省略可）
+    - **end_date**: 終了予定日（省略可）
+    - **estimated_budget**: 見積予算（円、省略可）
+    - **actual_budget**: 実績予算（円、省略可）
+    - **priority**: プロジェクト優先度（省略可）
+    - **owner_user_id**: プロジェクトオーナー（担当ユーザーID、省略可）
+    - **notes**: 備考（省略可）
     """
-    repo = ProjectRepository(db)
-    project = await repo.find_by_id(project_id, current_user.organization_id)
-
-    if project is None:
-        raise ProjectNotFoundError(project_id)
-
-    # 部分更新: リクエストで指定されたフィールドのみ更新
-    if request.name is not None:
-        project.name = request.name
-    if request.client_organization_id is not None:
-        project.client_organization_id = request.client_organization_id
-    if request.status is not None:
-        project.status = request.status
-    if request.start_date is not None:
-        project.start_date = request.start_date
-    if request.end_date is not None:
-        project.end_date = request.end_date
-    if request.description is not None:
-        project.description = request.description
-
-    updated_project = await repo.update(project, current_user.organization_id)
-    await db.commit()
-
-    return ProjectResponse.model_validate(updated_project)
+    project = await use_cases.update_project(
+        project_id=project_id,
+        requesting_organization_id=current_user.organization_id,
+        request=request,
+    )
+    return _to_response(project)
 
 
 @router.delete(
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="プロジェクト削除",
-    description="プロジェクトを論理削除します。認証が必要です。",
+    description="プロジェクトを論理削除します。",
 )
 async def delete_project(
     project_id: int,
     current_user: UserEntity = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+    use_cases: ProjectUseCases = Depends(get_project_use_cases),
 ) -> None:
     """
     プロジェクトを論理削除
 
-    認証されたユーザーの所属組織のプロジェクトのみ削除できます。
-
     - **project_id**: プロジェクトID
     """
-    repo = ProjectRepository(db)
-    await repo.soft_delete(project_id, current_user.organization_id)
-    await db.commit()
+    await use_cases.delete_project(
+        project_id=project_id,
+        requesting_organization_id=current_user.organization_id,
+    )
+
+
+def _to_response(project: ProjectEntity) -> ProjectResponse:
+    """
+    ProjectEntityをProjectResponseに変換
+
+    Args:
+        project: プロジェクトエンティティ
+
+    Returns:
+        ProjectResponse: プロジェクトレスポンス
+    """
+    return ProjectResponse(
+        id=project.id,
+        client_organization_id=project.client_organization_id,
+        name=project.name,
+        description=project.description,
+        status=ProjectStatusEnum(project.status.value),
+        start_date=project.start_date,
+        end_date=project.end_date,
+        estimated_budget=project.estimated_budget,
+        actual_budget=project.actual_budget,
+        priority=ProjectPriorityEnum(project.priority.value) if project.priority else None,
+        owner_user_id=project.owner_user_id,
+        notes=project.notes,
+        created_at=project.created_at,
+        updated_at=project.updated_at,
+        deleted_at=project.deleted_at,
+    )

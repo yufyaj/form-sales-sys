@@ -1,34 +1,50 @@
 """
 プロジェクトモデル
 
-営業プロジェクトの情報を管理するテーブル。
-顧客組織と営業支援会社の関係を持ちます。
+顧客組織に紐づくプロジェクト情報を管理するテーブル。
 """
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from datetime import date
+from enum import Enum as PyEnum
+
+from sqlalchemy import BigInteger, Date, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, SoftDeleteMixin, TimestampMixin
+
+
+class ProjectStatus(str, PyEnum):
+    """プロジェクトステータス"""
+
+    PLANNING = "planning"  # 企画中
+    IN_PROGRESS = "in_progress"  # 進行中
+    ON_HOLD = "on_hold"  # 保留
+    COMPLETED = "completed"  # 完了
+    CANCELLED = "cancelled"  # キャンセル
+
+
+class ProjectPriority(str, PyEnum):
+    """プロジェクト優先度"""
+
+    LOW = "low"  # 低
+    MEDIUM = "medium"  # 中
+    HIGH = "high"  # 高
+    CRITICAL = "critical"  # 緊急
 
 
 class Project(Base, TimestampMixin, SoftDeleteMixin):
     """
     プロジェクトテーブル
 
-    営業プロジェクトの情報を管理します。
-    顧客組織との関係を持ち、営業支援会社がプロジェクトを管理します。
+    顧客組織に紐づくプロジェクト情報を管理します。
     """
 
     __tablename__ = "projects"
 
+    # 主キー
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # プロジェクト基本情報
-    name: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="プロジェクト名"
-    )
-
-    # 顧客組織との関係
-    # RESTRICT: ClientOrganizationが削除される前に、Projectを削除する必要がある
+    # 顧客組織との紐付け（必須）
+    # RESTRICT: プロジェクトが存在する顧客組織は削除できない
     client_organization_id: Mapped[int] = mapped_column(
         ForeignKey("client_organizations.id", ondelete="RESTRICT"),
         nullable=False,
@@ -36,40 +52,92 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
         comment="顧客組織ID",
     )
 
-    # 営業支援会社との関係（マルチテナント分離用）
-    # RESTRICT: Organizationが削除される前に、Projectを削除する必要がある
-    sales_support_organization_id: Mapped[int] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"),
+    # 基本情報（必須）
+    name: Mapped[str] = mapped_column(
+        String(255),
         nullable=False,
-        index=True,
-        comment="営業支援会社組織ID（テナント分離用）",
+        comment="プロジェクト名",
     )
 
-    # プロジェクトステータス
-    # planning: 企画中, active: 進行中, completed: 完了, cancelled: キャンセル
-    status: Mapped[str] = mapped_column(
-        String(50),
+    status: Mapped[ProjectStatus] = mapped_column(
+        Enum(ProjectStatus, name="project_status"),
         nullable=False,
+        default=ProjectStatus.PLANNING,
+        index=True,  # ステータスでのフィルタリングが頻繁
+        comment="プロジェクトステータス",
+    )
+
+    # 基本情報（オプション）
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="プロジェクト説明",
+    )
+
+    # スケジュール情報
+    start_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        comment="開始予定日",
+    )
+
+    end_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        comment="終了予定日",
+    )
+
+    # 予算情報
+    estimated_budget: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+        comment="見積予算（円）",
+    )
+
+    actual_budget: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+        comment="実績予算（円）",
+    )
+
+    # 優先度
+    priority: Mapped[ProjectPriority | None] = mapped_column(
+        Enum(ProjectPriority, name="project_priority"),
+        nullable=True,
+        default=ProjectPriority.MEDIUM,
+        comment="プロジェクト優先度",
+    )
+
+    # プロジェクトオーナー（担当者）
+    # SET NULL: ユーザーが削除されてもプロジェクトは残す
+    owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
-        comment="ステータス: planning, active, completed, cancelled",
+        comment="プロジェクトオーナー（担当ユーザー）",
     )
 
-    # プロジェクト期間
-    start_date: Mapped[Date | None] = mapped_column(
-        Date, nullable=True, comment="開始日"
+    # 備考
+    notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="備考",
     )
-    end_date: Mapped[Date | None] = mapped_column(Date, nullable=True, comment="終了日")
-
-    # プロジェクト詳細
-    description: Mapped[str | None] = mapped_column(Text, nullable=True, comment="説明")
 
     # リレーションシップ
     client_organization: Mapped["ClientOrganization"] = relationship(
-        "ClientOrganization", back_populates="projects"
+        "ClientOrganization",
+        back_populates="projects",
     )
-    sales_support_organization: Mapped["Organization"] = relationship(
-        "Organization", back_populates="projects", foreign_keys=[sales_support_organization_id]
+
+    owner: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[owner_user_id],
     )
 
     def __repr__(self) -> str:
-        return f"<Project(id={self.id}, name={self.name}, status={self.status})>"
+        return (
+            f"<Project(id={self.id}, name={self.name}, "
+            f"client_organization_id={self.client_organization_id}, "
+            f"status={self.status})>"
+        )
