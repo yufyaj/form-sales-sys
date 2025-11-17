@@ -60,7 +60,7 @@ class ListItemCustomValue(Base, TimestampMixin, SoftDeleteMixin):
         UniqueConstraint(
             "list_item_id",
             "custom_column_setting_id",
-            name="uq_list_item_custom_values_list_item_id_custom_column_setting_id",
+            name="uq_list_item_custom_val_item_setting",
         ),
     )
 

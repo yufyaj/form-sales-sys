@@ -80,7 +80,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['custom_column_setting_id'], ['custom_column_settings.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['list_item_id'], ['list_items.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('list_item_id', 'custom_column_setting_id', name='uq_list_item_custom_values_list_item_id_custom_column_setting_id')
+    sa.UniqueConstraint('list_item_id', 'custom_column_setting_id', name='uq_list_item_custom_val_item_setting')
     )
     op.create_index(op.f('ix_list_item_custom_values_custom_column_setting_id'), 'list_item_custom_values', ['custom_column_setting_id'], unique=False)
     op.create_index(op.f('ix_list_item_custom_values_list_item_id'), 'list_item_custom_values', ['list_item_id'], unique=False)
