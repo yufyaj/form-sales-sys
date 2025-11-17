@@ -7,7 +7,7 @@ FastAPIの依存性注入を使用して、リポジトリやユースケース�
 import logging
 from typing import AsyncGenerator
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,21 +24,24 @@ from src.infrastructure.persistence.repositories.user_repository import UserRepo
 # ロガー設定
 logger = logging.getLogger(__name__)
 
-# HTTP Bearer認証スキーム
-security = HTTPBearer()
+# HTTP Bearer認証スキーム（オプション: クッキー認証もサポート）
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_db),
 ) -> UserEntity:
     """
     現在のユーザーを取得
 
     JWTトークンからユーザー情報を取得し、データベースから最新のユーザー情報を返します。
+    トークンはAuthorizationヘッダーまたはauthTokenクッキーから取得します。
 
     Args:
-        credentials: HTTPベアラートークン
+        request: FastAPIリクエスト
+        credentials: HTTPベアラートークン（オプション）
         session: DBセッション
 
     Returns:
@@ -47,7 +50,20 @@ async def get_current_user(
     Raises:
         HTTPException: トークンが無効、または期限切れの場合
     """
-    token = credentials.credentials
+    # Authorizationヘッダーからトークンを取得
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        # クッキーからトークンを取得
+        token = request.cookies.get('authToken')
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No authentication token provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # トークンをデコード
     payload = decode_access_token(token)
