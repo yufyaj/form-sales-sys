@@ -197,6 +197,39 @@ class ProjectCannotBeEditedError(BusinessRuleViolationException):
 
 
 # ========================================
+# Phase3: リスト管理例外
+# ========================================
+
+
+class ListNotFoundError(DomainException):
+    """リストが見つからない場合の例外"""
+
+    def __init__(self, list_id: int) -> None:
+        super().__init__(f"List with id {list_id} not found")
+
+
+class ListItemNotFoundError(DomainException):
+    """リスト項目が見つからない場合の例外"""
+
+    def __init__(self, list_item_id: int) -> None:
+        super().__init__(f"List item with id {list_item_id} not found")
+
+
+class CustomColumnSettingNotFoundError(DomainException):
+    """カスタムカラム設定が見つからない場合の例外"""
+
+    def __init__(self, custom_column_setting_id: int) -> None:
+        super().__init__(f"Custom column setting with id {custom_column_setting_id} not found")
+
+
+class ListItemCustomValueNotFoundError(DomainException):
+    """リスト項目カスタム値が見つからない場合の例外"""
+
+    def __init__(self, list_item_custom_value_id: int) -> None:
+        super().__init__(f"List item custom value with id {list_item_custom_value_id} not found")
+
+
+# ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
 
