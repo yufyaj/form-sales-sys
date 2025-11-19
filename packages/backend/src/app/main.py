@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.app.api import auth
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
+from src.app.api.lists import router as lists_router
 from src.app.api.projects import router as projects_router
 from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.users import router as users_router
@@ -105,6 +106,7 @@ app.include_router(
     client_contacts_router, prefix="/api/v1"
 )  # 顧客担当者管理は /api/v1/client-contacts
 app.include_router(projects_router, prefix="/api/v1")  # プロジェクト管理は /api/v1/projects
+app.include_router(lists_router, prefix="/api/v1")  # リスト管理は /api/v1/lists
 
 
 @app.get("/health", tags=["health"])
