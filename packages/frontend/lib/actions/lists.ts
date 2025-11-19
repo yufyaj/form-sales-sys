@@ -12,6 +12,7 @@ import {
   ListUpdateRequest,
   ListListResponse,
 } from '@/lib/api/lists'
+import { listSchema, listUpdateSchema } from '@/lib/validations/list'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
@@ -150,6 +151,7 @@ export async function getListDetail(
 
 /**
  * リスト作成
+ * セキュリティ: サーバーサイドでも入力検証を実施
  */
 export async function createListAction(
   projectId: number,
@@ -161,6 +163,15 @@ export async function createListAction(
       return { success: false, error: '認証が必要です' }
     }
 
+    // サーバーサイドでの入力検証（多層防御）
+    const validationResult = listSchema.safeParse(request)
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: '入力内容に誤りがあります',
+      }
+    }
+
     const response = await fetch(
       `${API_BASE_URL}/api/v1/projects/${projectId}/lists`,
       {
@@ -169,7 +180,7 @@ export async function createListAction(
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(validationResult.data),
       }
     )
 
@@ -194,6 +205,7 @@ export async function createListAction(
 
 /**
  * リスト更新
+ * セキュリティ: サーバーサイドでも入力検証を実施
  */
 export async function updateListAction(
   projectId: number,
@@ -206,6 +218,15 @@ export async function updateListAction(
       return { success: false, error: '認証が必要です' }
     }
 
+    // サーバーサイドでの入力検証（多層防御）
+    const validationResult = listUpdateSchema.safeParse(request)
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: '入力内容に誤りがあります',
+      }
+    }
+
     const response = await fetch(
       `${API_BASE_URL}/api/v1/projects/${projectId}/lists/${listId}`,
       {
@@ -214,7 +235,7 @@ export async function updateListAction(
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(validationResult.data),
       }
     )
 
