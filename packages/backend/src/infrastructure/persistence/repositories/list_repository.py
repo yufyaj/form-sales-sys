@@ -150,6 +150,86 @@ class ListRepository(IListRepository):
         list_model.deleted_at = datetime.now(timezone.utc)
         await self._session.flush()
 
+    async def duplicate(
+        self,
+        source_list_id: int,
+        new_name: str,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """リストを複製（マルチテナント対応・IDOR脆弱性対策）"""
+        # 複製元のリストを取得
+        stmt = (
+            select(List)
+            .where(
+                List.id == source_list_id,
+                List.organization_id == requesting_organization_id,
+                List.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        source_list = result.scalar_one_or_none()
+
+        if source_list is None:
+            raise ListNotFoundError(source_list_id)
+
+        # 新しいリストを作成
+        new_list = List(
+            organization_id=source_list.organization_id,
+            name=new_name,
+            description=source_list.description,
+        )
+
+        self._session.add(new_list)
+        await self._session.flush()
+        await self._session.refresh(new_list)
+
+        # リストアイテムを複製
+        # lazy loadingを避けるため、明示的にクエリを発行
+        from src.infrastructure.persistence.models.list_item import ListItem
+        from src.infrastructure.persistence.models.list_item_custom_value import (
+            ListItemCustomValue,
+        )
+
+        stmt_items = select(ListItem).where(
+            ListItem.list_id == source_list_id,
+            ListItem.deleted_at.is_(None),
+        )
+        result_items = await self._session.execute(stmt_items)
+        source_items = result_items.scalars().all()
+
+        # 各リストアイテムとそのカスタム値を複製
+        for source_item in source_items:
+            # 新しいリストアイテムを作成
+            new_item = ListItem(
+                list_id=new_list.id,
+                title=source_item.title,
+                status=source_item.status,
+            )
+            self._session.add(new_item)
+            await self._session.flush()
+            await self._session.refresh(new_item)
+
+            # カスタム値を複製
+            stmt_values = select(ListItemCustomValue).where(
+                ListItemCustomValue.list_item_id == source_item.id,
+                ListItemCustomValue.deleted_at.is_(None),
+            )
+            result_values = await self._session.execute(stmt_values)
+            source_values = result_values.scalars().all()
+
+            for source_value in source_values:
+                new_value = ListItemCustomValue(
+                    list_item_id=new_item.id,
+                    custom_column_setting_id=source_value.custom_column_setting_id,
+                    value=source_value.value,
+                )
+                self._session.add(new_value)
+
+        await self._session.flush()
+        await self._session.refresh(new_list)
+
+        return self._to_entity(new_list)
+
     def _to_entity(self, list_model: List) -> ListEntity:
         """
         SQLAlchemyモデルをドメインエンティティに変換

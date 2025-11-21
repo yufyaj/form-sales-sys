@@ -128,3 +128,30 @@ class IListRepository(ABC):
             requesting_organization_idで必ずテナント分離を行います。
         """
         pass
+
+    @abstractmethod
+    async def duplicate(
+        self,
+        source_list_id: int,
+        new_name: str,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストを複製
+
+        Args:
+            source_list_id: 複製元のリストID
+            new_name: 新しいリスト名
+            requesting_organization_id: リクエスト元の組織ID（テナント分離用）
+
+        Returns:
+            ListEntity: 複製されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: 複製元のリストが見つからない場合
+
+        Note:
+            IDOR脆弱性対策として、requesting_organization_idで必ずテナント分離を行います。
+            リストに紐づくリストアイテム（list_items）とカスタム値（list_item_custom_values）も一緒に複製します。
+        """
+        pass

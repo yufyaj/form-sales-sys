@@ -199,3 +199,44 @@ class ListUseCases:
             list_id=list_id,
             requesting_organization_id=requesting_organization_id,
         )
+
+    async def duplicate_list(
+        self,
+        list_id: int,
+        requesting_organization_id: int,
+        new_name: str | None = None,
+    ) -> ListEntity:
+        """
+        リストを複製
+
+        Args:
+            list_id: 複製元のリストID
+            requesting_organization_id: リクエスト元の組織ID（マルチテナント対応）
+            new_name: 新しいリスト名（指定がない場合は「{元の名前}のコピー」）
+
+        Returns:
+            複製されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+        """
+        # 複製元のリストを取得
+        source_list = await self._list_repo.find_by_id(
+            list_id=list_id,
+            requesting_organization_id=requesting_organization_id,
+        )
+        if source_list is None:
+            raise ListNotFoundError(list_id)
+
+        # 新しい名前が指定されていない場合はデフォルト名を生成
+        if new_name is None:
+            new_name = f"{source_list.name}のコピー"
+
+        # リストを複製
+        duplicated_list = await self._list_repo.duplicate(
+            source_list_id=list_id,
+            new_name=new_name,
+            requesting_organization_id=requesting_organization_id,
+        )
+
+        return duplicated_list

@@ -13,6 +13,7 @@ from src.app.api.dependencies import get_current_active_user
 from src.app.core.database import get_db
 from src.application.schemas.list import (
     ListCreateRequest,
+    ListDuplicateRequest,
     ListListResponse,
     ListResponse,
     ListUpdateRequest,
@@ -175,6 +176,33 @@ async def delete_list(
         list_id=list_id,
         requesting_organization_id=current_user.organization_id,
     )
+
+
+@router.post(
+    "/{list_id}/duplicate",
+    response_model=ListResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Duplicate list",
+    description="Duplicate a list with all its items and custom values.",
+)
+async def duplicate_list(
+    list_id: int,
+    request: ListDuplicateRequest,
+    current_user: UserEntity = Depends(get_current_active_user),
+    use_cases: ListUseCases = Depends(get_list_use_cases),
+) -> ListResponse:
+    """
+    リストを複製
+
+    - **list_id**: 複製元のリストID
+    - **new_name**: 新しいリスト名（省略可能、省略時は「{元の名前}のコピー」）
+    """
+    list_entity = await use_cases.duplicate_list(
+        list_id=list_id,
+        requesting_organization_id=current_user.organization_id,
+        new_name=request.new_name,
+    )
+    return _to_response(list_entity)
 
 
 def _to_response(list_entity: ListEntity) -> ListResponse:

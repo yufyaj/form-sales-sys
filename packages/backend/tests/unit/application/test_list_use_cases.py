@@ -384,3 +384,103 @@ class TestListUseCases:
                 list_id=1,
                 requesting_organization_id=10,
             )
+
+    @pytest.mark.asyncio
+    async def test_duplicate_list_success(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """リスト複製が成功する"""
+        # Arrange
+        source_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="元のリスト",
+            description="元の説明",
+        )
+
+        duplicated_list = ListEntity(
+            id=2,
+            organization_id=10,
+            name="元のリストのコピー",
+            description="元の説明",
+        )
+
+        mock_list_repository.find_by_id.return_value = source_list
+        mock_list_repository.duplicate.return_value = duplicated_list
+
+        # Act
+        result = await list_use_cases.duplicate_list(
+            list_id=1,
+            requesting_organization_id=10,
+            new_name="元のリストのコピー",
+        )
+
+        # Assert
+        assert result == duplicated_list
+        mock_list_repository.find_by_id.assert_called_once_with(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+        mock_list_repository.duplicate.assert_called_once_with(
+            source_list_id=1,
+            new_name="元のリストのコピー",
+            requesting_organization_id=10,
+        )
+
+    @pytest.mark.asyncio
+    async def test_duplicate_list_raises_not_found_error(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """複製元のリストが存在しない場合に例外を発生させる"""
+        # Arrange
+        mock_list_repository.find_by_id.return_value = None
+
+        # Act & Assert
+        with pytest.raises(ListNotFoundError):
+            await list_use_cases.duplicate_list(
+                list_id=1,
+                requesting_organization_id=10,
+                new_name="コピー",
+            )
+
+    @pytest.mark.asyncio
+    async def test_duplicate_list_generates_default_name_if_not_provided(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """新しいリスト名が指定されない場合、デフォルト名が生成される"""
+        # Arrange
+        source_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="元のリスト",
+            description="元の説明",
+        )
+
+        duplicated_list = ListEntity(
+            id=2,
+            organization_id=10,
+            name="元のリストのコピー",
+            description="元の説明",
+        )
+
+        mock_list_repository.find_by_id.return_value = source_list
+        mock_list_repository.duplicate.return_value = duplicated_list
+
+        # Act
+        result = await list_use_cases.duplicate_list(
+            list_id=1,
+            requesting_organization_id=10,
+            new_name=None,
+        )
+
+        # Assert
+        assert result == duplicated_list
+        # デフォルト名が生成されることを確認
+        call_kwargs = mock_list_repository.duplicate.call_args.kwargs
+        assert call_kwargs["new_name"] == "元のリストのコピー"
