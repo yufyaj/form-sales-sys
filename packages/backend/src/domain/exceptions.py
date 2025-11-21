@@ -229,6 +229,23 @@ class ListItemCustomValueNotFoundError(DomainException):
         super().__init__(f"List item custom value with id {list_item_custom_value_id} not found")
 
 
+class NgListDomainNotFoundError(DomainException):
+    """NGリストドメインが見つからない場合の例外"""
+
+    def __init__(self, ng_domain_id: int) -> None:
+        super().__init__(f"NG list domain with id {ng_domain_id} not found")
+
+
+class DuplicateNgDomainError(DomainException):
+    """NGドメインが既に登録されている場合の例外"""
+
+    def __init__(self, domain_pattern: str, list_id: int) -> None:
+        super().__init__(
+            f"ドメインパターン '{domain_pattern}' は既にリストID {list_id} に登録されています",
+            {"domain_pattern": domain_pattern, "list_id": list_id},
+        )
+
+
 # ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
