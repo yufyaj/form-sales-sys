@@ -4,9 +4,15 @@ NGリストドメイン管理ユースケース
 NGリストドメインのCRUD操作とビジネスロジックを実行します。
 """
 
+import logging
+
 from src.application.schemas.ng_list_domain import NgListDomainCreateRequest
 from src.domain.entities.ng_list_domain_entity import NgListDomainEntity
-from src.domain.exceptions import ListNotFoundError, NgListDomainNotFoundError
+from src.domain.exceptions import (
+    DuplicateNgDomainError,
+    ListNotFoundError,
+    NgListDomainNotFoundError,
+)
 from src.domain.interfaces.list_repository import IListRepository
 from src.domain.interfaces.ng_list_domain_repository import INgListDomainRepository
 from src.infrastructure.utils.domain_utils import (
@@ -14,6 +20,8 @@ from src.infrastructure.utils.domain_utils import (
     is_wildcard_pattern,
     extract_domain_from_url,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NgListDomainUseCases:
@@ -51,28 +59,65 @@ class NgListDomainUseCases:
             ListNotFoundError: リストが見つからない場合
             DuplicateNgDomainError: 同じドメインパターンが既に登録されている場合
         """
-        # セキュリティ: リストの存在確認と権限チェック
-        list_entity = await self._list_repo.find_by_id(
-            list_id=request.list_id,
-            requesting_organization_id=requesting_organization_id,
-        )
-        if list_entity is None:
-            raise ListNotFoundError(request.list_id)
+        try:
+            # セキュリティ: リストの存在確認と権限チェック
+            list_entity = await self._list_repo.find_by_id(
+                list_id=request.list_id,
+                requesting_organization_id=requesting_organization_id,
+            )
+            if list_entity is None:
+                # セキュリティログ: 権限エラー
+                logger.warning(
+                    "Unauthorized access attempt to list",
+                    extra={
+                        "event": "ng_domain_unauthorized_access",
+                        "organization_id": requesting_organization_id,
+                        "list_id": request.list_id,
+                        "action": "add_ng_domain",
+                    }
+                )
+                raise ListNotFoundError(request.list_id)
 
-        # ドメインパターンの正規化（バリデータで既に正規化済みだが、念のため）
-        normalized_pattern = normalize_domain_pattern(request.domain)
-        is_wildcard = is_wildcard_pattern(normalized_pattern)
+            # ドメインパターンの正規化（バリデータで既に正規化済みだが、念のため）
+            normalized_pattern = normalize_domain_pattern(request.domain)
+            is_wildcard = is_wildcard_pattern(normalized_pattern)
 
-        # NGドメインを作成
-        ng_domain = await self._ng_repo.create(
-            list_id=request.list_id,
-            domain=request.domain,
-            domain_pattern=normalized_pattern,
-            is_wildcard=is_wildcard,
-            memo=request.memo,
-        )
+            # NGドメインを作成
+            ng_domain = await self._ng_repo.create(
+                list_id=request.list_id,
+                domain=request.domain,
+                domain_pattern=normalized_pattern,
+                is_wildcard=is_wildcard,
+                memo=request.memo,
+            )
 
-        return ng_domain
+            # セキュリティログ: 成功
+            logger.info(
+                "NG domain created successfully",
+                extra={
+                    "event": "ng_domain_created",
+                    "organization_id": requesting_organization_id,
+                    "list_id": request.list_id,
+                    "domain_pattern": ng_domain.domain_pattern,
+                    "is_wildcard": ng_domain.is_wildcard,
+                    "ng_domain_id": ng_domain.id,
+                }
+            )
+
+            return ng_domain
+
+        except DuplicateNgDomainError as e:
+            # セキュリティログ: 重複エラー
+            logger.warning(
+                "Duplicate NG domain attempt",
+                extra={
+                    "event": "ng_domain_duplicate",
+                    "organization_id": requesting_organization_id,
+                    "list_id": request.list_id,
+                    "domain_pattern": request.domain,
+                }
+            )
+            raise
 
     async def get_ng_domain(
         self,
@@ -157,12 +202,33 @@ class NgListDomainUseCases:
             requesting_organization_id=requesting_organization_id,
         )
         if ng_domain is None:
+            # セキュリティログ: 権限エラー
+            logger.warning(
+                "Unauthorized access attempt to NG domain",
+                extra={
+                    "event": "ng_domain_unauthorized_delete",
+                    "organization_id": requesting_organization_id,
+                    "ng_domain_id": ng_domain_id,
+                }
+            )
             raise NgListDomainNotFoundError(ng_domain_id)
 
         # 論理削除を実行
         await self._ng_repo.delete(
             ng_domain_id=ng_domain_id,
             requesting_organization_id=requesting_organization_id,
+        )
+
+        # セキュリティログ: 削除成功
+        logger.info(
+            "NG domain deleted successfully",
+            extra={
+                "event": "ng_domain_deleted",
+                "organization_id": requesting_organization_id,
+                "ng_domain_id": ng_domain_id,
+                "list_id": ng_domain.list_id,
+                "domain_pattern": ng_domain.domain_pattern,
+            }
         )
 
     async def check_url_is_ng(

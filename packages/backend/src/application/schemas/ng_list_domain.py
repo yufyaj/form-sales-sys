@@ -108,16 +108,43 @@ class NgListDomainCheckRequest(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        """URLの基本的なバリデーション"""
+        """URLのバリデーション（SSRF対策版）"""
+        from urllib.parse import urlparse
+
         cleaned = v.strip()
         if not cleaned:
             raise ValueError("URLが空です")
 
-        # 明らかに不正な形式をチェック
-        if not any(c in cleaned for c in ['.', '/']):
-            raise ValueError("有効なURLを入力してください")
+        # スキームがない場合は追加
+        if not cleaned.startswith(('http://', 'https://')):
+            cleaned = 'https://' + cleaned
 
-        return cleaned
+        try:
+            parsed = urlparse(cleaned)
+
+            # セキュリティ: SSRF対策 - HTTP/HTTPSのみ許可
+            if parsed.scheme not in ('http', 'https'):
+                raise ValueError("http://またはhttps://のみ許可されています")
+
+            # 基本的な形式チェック
+            if not parsed.netloc or '.' not in parsed.netloc:
+                raise ValueError("有効なURLを入力してください")
+
+            # セキュリティ: ローカルホストへのアクセスを禁止（SSRF対策）
+            netloc_lower = parsed.netloc.lower().split(':')[0]  # ポート番号を除去
+            if netloc_lower in ('localhost', '127.0.0.1', '0.0.0.0', '::1'):
+                raise ValueError("ローカルホストへのアクセスは許可されていません")
+
+            # セキュリティ: プライベートIPアドレスへのアクセスを禁止（SSRF対策）
+            if netloc_lower.startswith(('10.', '172.', '192.168.', '169.254.')):
+                raise ValueError("プライベートIPアドレスへのアクセスは許可されていません")
+
+            return cleaned
+        except ValueError:
+            # 上記のValueErrorを再スロー
+            raise
+        except Exception:
+            raise ValueError("有効なURLを入力してください")
 
 
 # レスポンススキーマ

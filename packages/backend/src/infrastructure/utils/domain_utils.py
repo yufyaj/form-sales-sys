@@ -3,9 +3,12 @@
 
 URLからのドメイン抽出、正規化、NGドメインマッチングなどの
 ドメイン関連のユーティリティ関数を提供します。
+
+セキュリティ:
+- ReDoS対策: fnmatchの代わりにシンプルな文字列マッチングを使用
+- ワイルドカードパターンは *.domain.com 形式のみサポート
 """
 from urllib.parse import urlparse
-import fnmatch
 
 
 def extract_domain_from_url(url: str) -> str | None:
@@ -105,7 +108,7 @@ def is_domain_in_ng_list(
     ng_patterns: list[str]
 ) -> tuple[bool, str | None]:
     """
-    ドメインがNGリストに含まれるかチェック
+    ドメインがNGリストに含まれるかチェック（ReDoS対策版）
 
     Args:
         domain: チェック対象のドメイン（正規化済み）
@@ -123,12 +126,25 @@ def is_domain_in_ng_list(
         (True, "*.example.com")
         >>> is_domain_in_ng_list("other.com", ["example.com"])
         (False, None)
+
+    Security:
+        - ReDoS対策: fnmatchの代わりにシンプルな文字列マッチングを使用
+        - ワイルドカードパターンは *.domain.com 形式のみサポート
     """
     for pattern in ng_patterns:
         # ワイルドカード使用の場合
         if '*' in pattern:
-            if fnmatch.fnmatch(domain, pattern):
-                return (True, pattern)
+            # ReDoS対策: fnmatchの代わりにシンプルなマッチング
+            if pattern.startswith('*.'):
+                # *.example.com -> example.com
+                base_domain = pattern[2:]
+                # sub.example.com または example.com にマッチ
+                if domain == base_domain or domain.endswith('.' + base_domain):
+                    return (True, pattern)
+            # その他のワイルドカードパターン（非推奨）
+            # セキュリティ: 複雑なパターンはスキップ
+            else:
+                continue
         # 完全一致
         elif domain == pattern:
             return (True, pattern)
