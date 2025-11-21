@@ -229,7 +229,7 @@ class ListItemCustomValueNotFoundError(DomainException):
         super().__init__(f"List item custom value with id {list_item_custom_value_id} not found")
 
 
-class NoSendSettingNotFoundError(DomainException):
+class NoSendSettingNotFoundError(ResourceNotFoundException):
     """送信禁止設定が見つからない場合の例外"""
 
     def __init__(self, no_send_setting_id: int) -> None:

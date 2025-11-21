@@ -160,6 +160,8 @@ class NoSendSettingSpecificDateCreate(NoSendSettingBase):
     @model_validator(mode="after")
     def validate_date_fields(self):
         """日付フィールドの整合性検証"""
+        from datetime import date as date_type, timedelta
+
         has_specific = self.specific_date is not None
         has_range = (
             self.date_range_start is not None or self.date_range_end is not None
@@ -189,6 +191,14 @@ class NoSendSettingSpecificDateCreate(NoSendSettingBase):
                 raise ValueError(
                     f"開始日（{self.date_range_start}）は終了日（{self.date_range_end}）"
                     "より前である必要があります"
+                )
+
+            # 日付範囲の妥当性チェック（極端に長い期間を防ぐ）
+            max_range_days = 366  # 最大1年間
+            date_diff = (self.date_range_end - self.date_range_start).days
+            if date_diff > max_range_days:
+                raise ValueError(
+                    f"日付範囲は最大{max_range_days}日間までです（指定: {date_diff}日間）"
                 )
 
         return self

@@ -4,10 +4,13 @@
 INoSendSettingRepositoryインターフェースの具体的な実装。
 SQLAlchemyを使用してデータベース操作を行います。
 """
+import logging
 from datetime import datetime, date, time, timezone
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.domain.entities.no_send_setting_entity import NoSendSettingEntity, NoSendSettingType
 from src.domain.exceptions import NoSendSettingNotFoundError
@@ -86,6 +89,15 @@ class NoSendSettingRepository(INoSendSettingRepository):
         no_send_setting_model = result.scalar_one_or_none()
 
         if no_send_setting_model is None:
+            # IDOR攻撃試行の可能性をログに記録
+            logger.warning(
+                "NoSendSetting access denied or not found",
+                extra={
+                    "no_send_setting_id": no_send_setting_id,
+                    "requesting_organization_id": requesting_organization_id,
+                    "event_type": "potential_idor_attempt",
+                },
+            )
             return None
 
         return self._to_entity(no_send_setting_model)
@@ -144,6 +156,15 @@ class NoSendSettingRepository(INoSendSettingRepository):
         db_no_send_setting = result.scalar_one_or_none()
 
         if db_no_send_setting is None:
+            # IDOR攻撃試行の可能性をログに記録
+            logger.warning(
+                "NoSendSetting update denied or not found",
+                extra={
+                    "no_send_setting_id": no_send_setting_entity.id,
+                    "requesting_organization_id": requesting_organization_id,
+                    "event_type": "potential_idor_attempt",
+                },
+            )
             raise NoSendSettingNotFoundError(no_send_setting_entity.id)
 
         # エンティティの値でモデルを更新
@@ -184,6 +205,15 @@ class NoSendSettingRepository(INoSendSettingRepository):
         no_send_setting_model = result.scalar_one_or_none()
 
         if no_send_setting_model is None:
+            # IDOR攻撃試行の可能性をログに記録
+            logger.warning(
+                "NoSendSetting delete denied or not found",
+                extra={
+                    "no_send_setting_id": no_send_setting_id,
+                    "requesting_organization_id": requesting_organization_id,
+                    "event_type": "potential_idor_attempt",
+                },
+            )
             raise NoSendSettingNotFoundError(no_send_setting_id)
 
         no_send_setting_model.deleted_at = datetime.now(timezone.utc)
