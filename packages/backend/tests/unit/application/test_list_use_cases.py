@@ -453,7 +453,7 @@ class TestListUseCases:
         list_use_cases: ListUseCases,
         mock_list_repository: AsyncMock,
     ) -> None:
-        """新しいリスト名が指定されない場合、デフォルト名が生成される"""
+        """新しいリスト名が指定されない場合、タイムスタンプ付きのデフォルト名が生成される"""
         # Arrange
         source_list = ListEntity(
             id=1,
@@ -465,7 +465,7 @@ class TestListUseCases:
         duplicated_list = ListEntity(
             id=2,
             organization_id=10,
-            name="元のリストのコピー",
+            name="元のリストのコピー_20251121_192500",
             description="元の説明",
         )
 
@@ -481,6 +481,11 @@ class TestListUseCases:
 
         # Assert
         assert result == duplicated_list
-        # デフォルト名が生成されることを確認
+        # デフォルト名にタイムスタンプが含まれることを確認
         call_kwargs = mock_list_repository.duplicate.call_args.kwargs
-        assert call_kwargs["new_name"] == "元のリストのコピー"
+        generated_name = call_kwargs["new_name"]
+        assert generated_name.startswith("元のリストのコピー_")
+        # タイムスタンプ形式（YYYYMMDD_HHMMSS）を確認
+        import re
+
+        assert re.match(r"元のリストのコピー_\d{8}_\d{6}", generated_name)

@@ -212,7 +212,7 @@ class ListUseCases:
         Args:
             list_id: 複製元のリストID
             requesting_organization_id: リクエスト元の組織ID（マルチテナント対応）
-            new_name: 新しいリスト名（指定がない場合は「{元の名前}のコピー」）
+            new_name: 新しいリスト名（指定がない場合は「{元の名前}のコピー_{timestamp}」）
 
         Returns:
             複製されたリストエンティティ
@@ -229,8 +229,12 @@ class ListUseCases:
             raise ListNotFoundError(list_id)
 
         # 新しい名前が指定されていない場合はデフォルト名を生成
+        # タイムスタンプを付与して重複を防ぐ
         if new_name is None:
-            new_name = f"{source_list.name}のコピー"
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            new_name = f"{source_list.name}のコピー_{timestamp}"
 
         # リストを複製
         duplicated_list = await self._list_repo.duplicate(
