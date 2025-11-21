@@ -33,11 +33,15 @@ class CsvImportService(ICsvImportService):
     CSVインポートサービス実装
 
     標準ライブラリのcsvモジュールを使用してCSVファイルを解析します。
-    セキュリティ: CSVインジェクション対策として、特殊文字で始まる値をエスケープします。
+    セキュリティ: CSVインジェクション対策として、特殊文字で始まる値を拒否します。
     """
 
     # CSVインジェクション対策: 危険な文字で始まるセルを検出
     DANGEROUS_PREFIXES = ["=", "+", "-", "@", "\t", "\r"]
+
+    # DoS対策: CSVファイルの制限
+    MAX_CSV_ROWS = 10000  # 最大行数
+    MAX_CELL_LENGTH = 10000  # セルの最大文字数
 
     def __init__(self, db_session: AsyncSession):
         """
@@ -48,22 +52,36 @@ class CsvImportService(ICsvImportService):
 
     def _sanitize_csv_value(self, value: str | None) -> str | None:
         """
-        CSV値をサニタイズする（CSVインジェクション対策）
+        CSV値をサニタイズする（CSVインジェクション対策強化版）
+
+        危険な文字で始まる値は完全に拒否します。
+        エスケープではなく拒否方式を採用することで、より高いセキュリティを確保します。
 
         Args:
             value: サニタイズする値
 
         Returns:
             サニタイズされた値
+
+        Raises:
+            ValueError: 危険な文字で始まる値が検出された場合
         """
         if not value:
             return value
 
-        # 危険な文字で始まる場合、シングルクォートでエスケープ
-        if value and value[0] in self.DANGEROUS_PREFIXES:
-            return f"'{value}"
+        # 空白のみの値はNoneを返す
+        stripped_value = value.strip()
+        if not stripped_value:
+            return None
 
-        return value
+        # 危険な文字で始まる場合、値を拒否（セキュリティ強化）
+        if stripped_value[0] in self.DANGEROUS_PREFIXES:
+            raise ValueError(
+                f"セキュリティ上の理由により、'{stripped_value[0]}'で始まる値は許可されていません。"
+                f"該当値: '{stripped_value[:50]}...'"
+            )
+
+        return stripped_value
 
     async def parse_csv_file(
         self,
@@ -109,13 +127,26 @@ class CsvImportService(ICsvImportService):
 
             # 各行を解析
             for row_num, row in enumerate(csv_reader, start=2):  # ヘッダーが1行目なので2から
+                # 行数制限チェック（DoS対策）
+                if len(rows) >= self.MAX_CSV_ROWS:
+                    raise ValueError(
+                        f"CSVファイルの行数が上限（{self.MAX_CSV_ROWS}行）を超えています"
+                    )
+
                 # カラムマッピングに基づいてデータを変換
                 mapped_data: dict[str, str | None] = {}
 
                 for csv_col, system_field in mapping_dict.items():
                     value = row.get(csv_col)
-                    # サニタイズ処理
-                    sanitized_value = self._sanitize_csv_value(value.strip()) if value else None
+
+                    # セル長制限チェック（DoS対策）
+                    if value and len(value) > self.MAX_CELL_LENGTH:
+                        raise ValueError(
+                            f"行{row_num}: セルの文字数が上限（{self.MAX_CELL_LENGTH}文字）を超えています"
+                        )
+
+                    # サニタイズ処理（CSVインジェクション対策）
+                    sanitized_value = self._sanitize_csv_value(value) if value else None
                     mapped_data[system_field] = sanitized_value
 
                 # CsvRowDataエンティティを作成

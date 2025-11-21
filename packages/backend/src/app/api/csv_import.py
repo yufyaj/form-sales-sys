@@ -9,6 +9,7 @@ CSVインポートAPI
 """
 
 import logging
+from pathlib import Path
 
 from fastapi import (
     APIRouter,
@@ -47,6 +48,127 @@ router = APIRouter(
     prefix="/csv-import",
     tags=["CSV Import"],
 )
+
+# セキュリティ定数
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_CONTENT_TYPES = ["text/csv", "application/csv", "text/plain"]
+# 危険なファイルシグネチャ（マジックナンバー）
+DANGEROUS_FILE_SIGNATURES = [
+    b"\x4D\x5A",  # PE/EXE (MZ)
+    b"\x7F\x45\x4C\x46",  # ELF
+    b"\x50\x4B\x03\x04",  # ZIP/JAR
+    b"\x25\x50\x44\x46",  # PDF
+    b"\x89\x50\x4E\x47",  # PNG
+    b"\xFF\xD8\xFF",  # JPEG
+    b"\x47\x49\x46",  # GIF
+]
+
+
+def validate_csv_file_extension(filename: str) -> bool:
+    """
+    CSVファイル拡張子を厳格に検証
+
+    Args:
+        filename: 検証するファイル名
+
+    Returns:
+        有効な場合True、そうでない場合False
+    """
+    if not filename:
+        return False
+
+    # NULLバイト除去（NULLバイトインジェクション対策）
+    filename = filename.replace("\x00", "")
+
+    # 拡張子を小文字で検証
+    ext = Path(filename).suffix.lower()
+
+    # 許可リストによる検証（ホワイトリスト方式）
+    return ext == ".csv"
+
+
+def validate_file_content_type(content_type: str | None) -> bool:
+    """
+    ファイルのContent-Typeを検証
+
+    Args:
+        content_type: 検証するContent-Type
+
+    Returns:
+        有効な場合True、そうでない場合False
+    """
+    if not content_type:
+        return False
+
+    # Content-Typeを小文字で正規化
+    content_type = content_type.lower().strip()
+
+    # セミコロン以降のパラメータを除去（例: "text/csv; charset=utf-8" -> "text/csv"）
+    if ";" in content_type:
+        content_type = content_type.split(";")[0].strip()
+
+    return content_type in ALLOWED_CONTENT_TYPES
+
+
+def validate_file_magic_number(file_content: bytes) -> bool:
+    """
+    ファイル内容のマジックナンバーを検証（バイナリファイル検出）
+
+    Args:
+        file_content: 検証するファイル内容
+
+    Returns:
+        安全な場合True、危険なファイルの場合False
+    """
+    if not file_content:
+        return True
+
+    # 危険なファイルシグネチャをチェック
+    for signature in DANGEROUS_FILE_SIGNATURES:
+        if file_content.startswith(signature):
+            return False
+
+    return True
+
+
+def validate_csv_file_security(file: UploadFile, file_content: bytes) -> None:
+    """
+    CSVファイルのセキュリティ検証を一括実行
+
+    Args:
+        file: アップロードされたファイル
+        file_content: ファイルの内容
+
+    Raises:
+        HTTPException: 検証に失敗した場合
+    """
+    # 1. ファイル拡張子の検証
+    if not validate_csv_file_extension(file.filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSVファイル（.csv拡張子）のみアップロード可能です",
+        )
+
+    # 2. Content-Typeの検証
+    if not validate_file_content_type(file.content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"許可されていないContent-Typeです。許可: {', '.join(ALLOWED_CONTENT_TYPES)}",
+        )
+
+    # 3. ファイルサイズの検証
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"ファイルサイズが大きすぎます（最大{MAX_FILE_SIZE // (1024 * 1024)}MB）",
+        )
+
+    # 4. マジックナンバーの検証（バイナリファイル検出）
+    if not validate_file_magic_number(file_content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSVファイルとして無効なファイル形式です",
+        )
 
 
 async def get_csv_import_use_case(
@@ -142,22 +264,11 @@ async def validate_csv_file(
     Raises:
         HTTPException: バリデーションエラーまたはファイル読み込みエラー
     """
-    # ファイルタイプのバリデーション
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSVファイルのみアップロード可能です",
-        )
-
-    # ファイルサイズのバリデーション（10MB制限）
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    # ファイル内容を読み込み
     file_content = await file.read()
 
-    if len(file_content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="ファイルサイズが大きすぎます（最大10MB）",
-        )
+    # セキュリティ検証（拡張子、Content-Type、サイズ、マジックナンバー）
+    validate_csv_file_security(file, file_content)
 
     # カラムマッピングが指定されていない場合、デフォルトマッピングを使用
     if not column_mappings:
@@ -193,11 +304,12 @@ async def validate_csv_file(
     except ValueError as e:
         logger.error(
             f"CSV validation failed: {str(e)}",
-            extra={"user_id": current_user.id},
+            extra={"user_id": current_user.id, "filename": file.filename},
         )
+        # セキュリティ: 内部エラー詳細を露出しない
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="CSVファイルの形式が正しくありません。テンプレートを確認してください。",
         ) from e
     except Exception as e:
         logger.error(
@@ -238,22 +350,11 @@ async def execute_csv_import(
     Raises:
         HTTPException: インポートエラー
     """
-    # ファイルタイプのバリデーション
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSVファイルのみアップロード可能です",
-        )
-
-    # ファイルサイズのバリデーション（10MB制限）
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    # ファイル内容を読み込み
     file_content = await file.read()
 
-    if len(file_content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="ファイルサイズが大きすぎます（最大10MB）",
-        )
+    # セキュリティ検証（拡張子、Content-Type、サイズ、マジックナンバー）
+    validate_csv_file_security(file, file_content)
 
     # リクエストが指定されていない場合、デフォルト値を使用
     if not request:
@@ -302,11 +403,12 @@ async def execute_csv_import(
     except ValueError as e:
         logger.error(
             f"CSV import failed: {str(e)}",
-            extra={"user_id": current_user.id},
+            extra={"user_id": current_user.id, "filename": file.filename},
         )
+        # セキュリティ: 内部エラー詳細を露出しない
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="CSVファイルのインポートに失敗しました。データ形式を確認してください。",
         ) from e
     except Exception as e:
         logger.error(
