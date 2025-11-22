@@ -12,6 +12,7 @@ from .list import List
 from .list_item import ListItem
 from .list_item_custom_value import ListItemCustomValue
 from .ng_list_domain import NgListDomain
+from .no_send_setting import NoSendSetting
 from .organization import Organization, OrganizationType
 from .project import Project, ProjectPriority, ProjectStatus
 from .role import Permission, Role
@@ -44,4 +45,5 @@ __all__ = [
     "ListItem",
     "ListItemCustomValue",
     "NgListDomain",
+    "NoSendSetting",
 ]

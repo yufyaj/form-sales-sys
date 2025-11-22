@@ -10,8 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.app.api import auth
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
+from src.app.api.csv_import import router as csv_import_router
 from src.app.api.lists import router as lists_router
 from src.app.api.ng_list_domains import router as ng_list_domains_router
+from src.app.api.no_send_settings import router as no_send_settings_router
 from src.app.api.projects import router as projects_router
 from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.users import router as users_router
@@ -111,6 +113,10 @@ app.include_router(lists_router, prefix="/api/v1")  # リスト管理は /api/v1
 app.include_router(
     ng_list_domains_router, prefix="/api/v1"
 )  # NGリスト管理は /api/v1/ng-list-domains
+app.include_router(csv_import_router, prefix="/api/v1")  # CSVインポートは /api/v1/csv-import
+app.include_router(
+    no_send_settings_router, prefix="/api/v1"
+)  # 送信禁止設定は /api/v1/no-send-settings
 
 
 @app.get("/health", tags=["health"])

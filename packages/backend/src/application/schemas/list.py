@@ -93,6 +93,29 @@ class ListUpdateRequest(BaseModel):
         return cleaned if cleaned else None
 
 
+class ListDuplicateRequest(BaseModel):
+    """List duplication request"""
+
+    new_name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        description="New list name (if not specified, generates '{original_name} のコピー')",
+    )
+
+    @field_validator("new_name")
+    @classmethod
+    def sanitize_new_name(cls, v: str | None) -> str | None:
+        """Sanitize new list name"""
+        if v is None:
+            return None
+        cleaned = "".join(c for c in v if c.isprintable() or c.isspace())
+        cleaned = " ".join(cleaned.split())
+        if not cleaned:
+            raise ValueError("List name cannot be empty")
+        return cleaned
+
+
 # Response schemas
 class ListResponse(BaseModel):
     """List response"""
