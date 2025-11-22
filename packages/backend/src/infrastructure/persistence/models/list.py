@@ -63,6 +63,11 @@ class List(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="list",
         cascade="all, delete-orphan",
     )
+    scripts: Mapped[list["ListScript"]] = relationship(
+        "ListScript",
+        back_populates="list",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<List(id={self.id}, name={self.name}, organization_id={self.organization_id})>"
