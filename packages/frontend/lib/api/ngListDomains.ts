@@ -2,6 +2,7 @@
  * NGリストドメインAPI クライアント関数
  */
 
+import { z } from 'zod'
 import { get, post, del } from '../api-client'
 import type {
   NgListDomain,
@@ -12,22 +13,52 @@ import type {
 } from '@/types/ngListDomain'
 
 /**
+ * APIレスポンススキーマ（バックエンドのsnake_case形式）
+ */
+const ngListDomainResponseSchema = z.object({
+  id: z.number(),
+  list_id: z.number(),
+  domain: z.string(),
+  domain_pattern: z.string(),
+  is_wildcard: z.boolean(),
+  memo: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  deleted_at: z.string().nullable().optional(),
+})
+
+/**
  * APIレスポンスをフロントエンドの型に変換
  * バックエンドのsnake_caseをcamelCaseに変換
+ *
+ * @param data - 未検証のAPIレスポンスデータ
+ * @returns 検証済みのNgListDomainオブジェクト
+ * @throws ZodError - レスポンスが期待する型と一致しない場合
  */
-function transformNgListDomain(data: any): NgListDomain {
+function transformNgListDomain(data: unknown): NgListDomain {
+  // ランタイム型検証
+  const validated = ngListDomainResponseSchema.parse(data)
+
   return {
-    id: data.id,
-    listId: data.list_id,
-    domain: data.domain,
-    domainPattern: data.domain_pattern,
-    isWildcard: data.is_wildcard,
-    memo: data.memo,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-    deletedAt: data.deleted_at,
+    id: validated.id,
+    listId: validated.list_id,
+    domain: validated.domain,
+    domainPattern: validated.domain_pattern,
+    isWildcard: validated.is_wildcard,
+    memo: validated.memo ?? null,
+    createdAt: validated.created_at,
+    updatedAt: validated.updated_at,
+    deletedAt: validated.deleted_at ?? null,
   }
 }
+
+/**
+ * リストレスポンススキーマ
+ */
+const ngListDomainListResponseSchema = z.object({
+  ng_domains: z.array(ngListDomainResponseSchema),
+  total: z.number(),
+})
 
 /**
  * リストに属するNGドメイン一覧を取得
@@ -38,13 +69,16 @@ function transformNgListDomain(data: any): NgListDomain {
 export async function fetchNgListDomains(
   listId: number
 ): Promise<NgListDomainListResponse> {
-  const response = await get<{ ng_domains: any[]; total: number }>(
+  const response = await get<unknown>(
     `/ng-list-domains?list_id=${listId}`
   )
 
+  // ランタイム型検証
+  const validated = ngListDomainListResponseSchema.parse(response)
+
   return {
-    ngDomains: response.ng_domains.map(transformNgListDomain),
-    total: response.total,
+    ngDomains: validated.ng_domains.map(transformNgListDomain),
+    total: validated.total,
   }
 }
 
@@ -55,7 +89,7 @@ export async function fetchNgListDomains(
  * @returns NGドメイン
  */
 export async function fetchNgListDomain(ngDomainId: number): Promise<NgListDomain> {
-  const response = await get<any>(`/ng-list-domains/${ngDomainId}`)
+  const response = await get<unknown>(`/ng-list-domains/${ngDomainId}`)
   return transformNgListDomain(response)
 }
 
@@ -75,7 +109,7 @@ export async function createNgListDomain(
     memo: data.memo,
   }
 
-  const response = await post<any>('/ng-list-domains', requestData)
+  const response = await post<unknown>('/ng-list-domains', requestData)
   return transformNgListDomain(response)
 }
 
@@ -87,6 +121,15 @@ export async function createNgListDomain(
 export async function deleteNgListDomain(ngDomainId: number): Promise<void> {
   await del(`/ng-list-domains/${ngDomainId}`)
 }
+
+/**
+ * チェックレスポンススキーマ
+ */
+const ngListDomainCheckResponseSchema = z.object({
+  is_ng: z.boolean(),
+  matched_pattern: z.string().nullable().optional(),
+  extracted_domain: z.string().nullable().optional(),
+})
 
 /**
  * URLがNGリストに含まれるかチェック
@@ -103,15 +146,14 @@ export async function checkUrlIsNg(
     url: data.url,
   }
 
-  const response = await post<{
-    is_ng: boolean
-    matched_pattern?: string | null
-    extracted_domain?: string | null
-  }>('/ng-list-domains/check', requestData)
+  const response = await post<unknown>('/ng-list-domains/check', requestData)
+
+  // ランタイム型検証
+  const validated = ngListDomainCheckResponseSchema.parse(response)
 
   return {
-    isNg: response.is_ng,
-    matchedPattern: response.matched_pattern,
-    extractedDomain: response.extracted_domain,
+    isNg: validated.is_ng,
+    matchedPattern: validated.matched_pattern ?? null,
+    extractedDomain: validated.extracted_domain ?? null,
   }
 }

@@ -17,11 +17,8 @@ const domainValidator = z
     (val) => {
       if (!val) return false
 
-      // 使用可能な文字チェック (英数字、ドット、ハイフン、アスタリスク)
-      const allowedChars = /^[a-z0-9.*-]+$/
-      if (!allowedChars.test(val)) return false
-
       // ワイルドカードのチェック
+      let domainToValidate = val
       if (val.includes('*')) {
         // ワイルドカードは先頭の *.domain.com 形式のみ許可
         if (!val.startsWith('*.')) return false
@@ -29,7 +26,26 @@ const domainValidator = z
         if (val.slice(2).includes('*')) return false
         // *.のみは不可
         if (val.length <= 2) return false
+
+        // ワイルドカード部分を除いたドメインを検証対象にする
+        domainToValidate = val.slice(2)
       }
+
+      // RFC 1035準拠のドメイン名検証
+      // 各ラベル（ドット区切りの部分）が以下を満たすこと:
+      // - 英数字で開始
+      // - 英数字で終了
+      // - 途中にハイフンを含んでもよい
+      // - 63文字以内
+      const domainPattern = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+      if (!domainPattern.test(domainToValidate)) return false
+
+      // 連続するドットの禁止
+      if (domainToValidate.includes('..')) return false
+
+      // 先頭または末尾のドット/ハイフンの禁止（パターンでチェック済みだが念のため）
+      if (domainToValidate.startsWith('.') || domainToValidate.endsWith('.')) return false
+      if (domainToValidate.startsWith('-') || domainToValidate.endsWith('-')) return false
 
       return true
     },

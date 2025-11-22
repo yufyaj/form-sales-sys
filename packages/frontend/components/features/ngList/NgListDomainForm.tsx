@@ -14,6 +14,7 @@ import {
   type NgListDomainFormData,
 } from '@/lib/validations/ngListDomain'
 import { createNgListDomain } from '@/lib/api/ngListDomains'
+import { ApiError } from '@/lib/api-client'
 import { transitions } from '@/lib/motion'
 
 interface NgListDomainFormProps {
@@ -73,12 +74,28 @@ export function NgListDomainForm({
       // 成功時のコールバック
       onSuccess?.()
     } catch (err) {
+      // セキュリティのため、開発者用のログのみ詳細エラーを記録
       console.error('NGドメイン登録エラー:', err)
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'NGドメインの登録に失敗しました。もう一度お試しください。'
-      )
+
+      // ユーザー向けには安全なメッセージのみ表示
+      let userMessage = 'NGドメインの登録に失敗しました。もう一度お試しください。'
+
+      // ApiErrorの場合は、ステータスコードに応じて適切なメッセージを設定
+      if (err instanceof ApiError) {
+        if (err.status === 400) {
+          userMessage = '入力内容に誤りがあります。ドメイン形式をご確認ください。'
+        } else if (err.status === 409) {
+          userMessage = 'このドメインは既に登録されています。'
+        } else if (err.status === 422) {
+          userMessage = '入力値の検証に失敗しました。入力内容をご確認ください。'
+        } else if (err.status >= 500) {
+          userMessage = 'サーバーエラーが発生しました。しばらくしてから再度お試しください。'
+        } else if (err.status === 0) {
+          userMessage = 'ネットワークエラーが発生しました。インターネット接続をご確認ください。'
+        }
+      }
+
+      setError(userMessage)
     } finally {
       setIsSubmitting(false)
     }
