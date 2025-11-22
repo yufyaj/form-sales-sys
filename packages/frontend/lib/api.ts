@@ -8,21 +8,75 @@ import type { LoginFormData, AuthResponse, ApiError } from '@/types/auth'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-// 本番環境ではHTTPSを強制
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && !API_BASE_URL.startsWith('https://')) {
-  throw new Error('本番環境ではHTTPSを使用する必要があります')
+/**
+ * API URLの妥当性を検証
+ */
+function validateApiUrl(url: string): void {
+  try {
+    const parsed = new URL(url)
+
+    // 許可されたプロトコルのみ
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error(`不正なプロトコル: ${parsed.protocol}`)
+    }
+
+    // 本番環境ではHTTPSを強制
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+      throw new Error('本番環境ではHTTPSを使用する必要があります')
+    }
+
+    // 本番環境では許可されたホストのみアクセス可能
+    if (process.env.NODE_ENV === 'production') {
+      const allowedHosts = process.env.NEXT_PUBLIC_ALLOWED_API_HOSTS?.split(',') || []
+      if (allowedHosts.length > 0 && !allowedHosts.includes(parsed.hostname)) {
+        throw new Error(`許可されていないホスト: ${parsed.hostname}`)
+      }
+    }
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`無効なURL形式: ${url}`)
+    }
+    throw error
+  }
+}
+
+// URL検証を実行
+if (typeof window !== 'undefined') {
+  validateApiUrl(API_BASE_URL)
 }
 
 /**
- * CSRFトークンを取得
+ * CSRFトークンのキャッシュ
+ */
+let csrfTokenCache: { token: string | null; timestamp: number } = {
+  token: null,
+  timestamp: 0,
+}
+
+const CSRF_TOKEN_CACHE_DURATION = 5 * 60 * 1000 // 5分
+
+/**
+ * CSRFトークンを取得（キャッシュ機能付き）
  */
 function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null
 
+  const now = Date.now()
+
+  // キャッシュが有効な場合は再利用
+  if (
+    csrfTokenCache.token &&
+    now - csrfTokenCache.timestamp < CSRF_TOKEN_CACHE_DURATION
+  ) {
+    return csrfTokenCache.token
+  }
+
   // メタタグからCSRFトークンを取得
   const csrfMeta = document.querySelector('meta[name="csrf-token"]')
   if (csrfMeta) {
-    return csrfMeta.getAttribute('content')
+    const token = csrfMeta.getAttribute('content')
+    csrfTokenCache = { token, timestamp: now }
+    return token
   }
 
   // クッキーからCSRFトークンを取得（フォールバック）
@@ -30,10 +84,13 @@ function getCsrfToken(): string | null {
   for (const cookie of cookies) {
     const [name, value] = cookie.trim().split('=')
     if (name === 'XSRF-TOKEN') {
-      return decodeURIComponent(value)
+      const token = decodeURIComponent(value)
+      csrfTokenCache = { token, timestamp: now }
+      return token
     }
   }
 
+  csrfTokenCache = { token: null, timestamp: 0 }
   return null
 }
 
@@ -81,7 +138,23 @@ class ApiClient {
         const error: ApiError = await response.json().catch(() => ({
           message: 'ネットワークエラーが発生しました',
         }))
-        throw new Error(error.message)
+
+        // 本番環境では一般的なエラーメッセージを使用
+        const userMessage =
+          process.env.NODE_ENV === 'production'
+            ? 'リクエストの処理中にエラーが発生しました'
+            : error.message
+
+        // 開発環境でのみ詳細をログ出力
+        if (process.env.NODE_ENV === 'development') {
+          console.error('API Error Details:', {
+            status: response.status,
+            statusText: response.statusText,
+            error,
+          })
+        }
+
+        throw new Error(userMessage)
       }
 
       return response.json()

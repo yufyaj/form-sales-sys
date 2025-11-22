@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
+import { QueryProvider } from '@/components/providers/QueryProvider'
 
 /**
  * ルートレイアウト
@@ -10,6 +11,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary'
  * セキュリティ改善点:
  * - ErrorBoundaryで予期しないエラーをキャッチ
  * - AuthProviderでアプリケーション全体の認証状態を管理
+ * - QueryProviderでTanStack Queryを全体で使用可能に
  * - サーバーコンポーネントとして実装し、Hydration問題を回避
  */
 export const metadata: Metadata = {
@@ -26,7 +28,9 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <body className="min-h-screen bg-gray-50 antialiased">
         <ErrorBoundary>
-          <AuthProvider>{children}</AuthProvider>
+          <QueryProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </QueryProvider>
         </ErrorBoundary>
       </body>
     </html>
