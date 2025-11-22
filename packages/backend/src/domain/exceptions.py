@@ -176,6 +176,14 @@ class SalesCompanyStaffNotFoundError(DomainException):
         super().__init__("Sales company staff not found")
 
 
+class WorkerNotFoundError(DomainException):
+    """ワーカーが見つからない場合の例外"""
+
+    def __init__(self, worker_id: int | None = None) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Worker not found")
+
+
 class ProjectNotFoundError(ResourceNotFoundException):
     """プロジェクトが見つからない場合の例外"""
 
