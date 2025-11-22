@@ -4,6 +4,8 @@ interface BadgeProps {
   children: React.ReactNode
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info'
   size?: 'sm' | 'md' | 'lg'
+  role?: string
+  'aria-label'?: string
 }
 
 /**
@@ -14,6 +16,8 @@ export default function Badge({
   children,
   variant = 'default',
   size = 'md',
+  role,
+  'aria-label': ariaLabel,
 }: BadgeProps) {
   const variantClasses = {
     default: 'bg-gray-100 text-gray-800',
@@ -36,6 +40,8 @@ export default function Badge({
         variantClasses[variant],
         sizeClasses[size]
       )}
+      role={role}
+      aria-label={ariaLabel}
     >
       {children}
     </span>
