@@ -157,3 +157,37 @@ class IListItemAssignmentRepository(ABC):
             このメソッドは、assign_worker_to_list_item実行前のバリデーションに使用できます。
         """
         pass
+
+    @abstractmethod
+    async def assign_workers_to_list_in_bulk(
+        self,
+        list_id: int,
+        worker_id: int,
+        count: int,
+        requesting_organization_id: int,
+    ) -> list[ListItemAssignmentEntity]:
+        """
+        リスト内の未割り当て項目に対してワーカーを一括割り当て
+
+        Args:
+            list_id: リストID
+            worker_id: ワーカーID
+            count: 割り当て件数（1以上）
+            requesting_organization_id: リクエスト元の営業支援会社の組織ID（テナント分離用）
+
+        Returns:
+            list[ListItemAssignmentEntity]: 作成された割り当てエンティティのリスト
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合、
+                              またはrequesting_organization_idと一致しない場合
+            WorkerNotFoundError: ワーカーが見つからない場合、
+                                またはrequesting_organization_idと一致しない場合
+
+        Note:
+            IDOR脆弱性対策として、requesting_organization_idで必ずテナント分離を行います。
+            既に割り当て済みのリスト項目は除外されます。
+            論理削除されたリスト項目も除外されます。
+            未割り当て項目がcount未満の場合、利用可能な全項目を割り当てます。
+        """
+        pass

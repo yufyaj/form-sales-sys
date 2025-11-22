@@ -237,6 +237,93 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
 
         return assignment is not None
 
+    async def assign_workers_to_list_in_bulk(
+        self,
+        list_id: int,
+        worker_id: int,
+        count: int,
+        requesting_organization_id: int,
+    ) -> list[ListItemAssignmentEntity]:
+        """
+        リスト内の未割り当て項目に対してワーカーを一括割り当て
+
+        実装手順:
+        1. リストの存在確認 + テナント分離
+        2. ワーカーの存在確認 + テナント分離
+        3. 未割り当てのリスト項目を取得（論理削除済みを除外）
+        4. 指定件数分をワーカーに割り当て
+        5. 一括INSERTで効率化
+        """
+        from src.domain.exceptions import ListNotFoundError
+
+        # マルチテナント対応: リストの所属組織を検証
+        list_stmt = select(List).where(
+            List.id == list_id,
+            List.organization_id == requesting_organization_id,
+            List.deleted_at.is_(None),
+        )
+        list_result = await self._session.execute(list_stmt)
+        list_obj = list_result.scalar_one_or_none()
+
+        if list_obj is None:
+            raise ListNotFoundError(list_id)
+
+        # マルチテナント対応: ワーカーの所属組織を検証
+        worker_stmt = select(Worker).where(
+            Worker.id == worker_id,
+            Worker.organization_id == requesting_organization_id,
+            Worker.deleted_at.is_(None),
+        )
+        worker_result = await self._session.execute(worker_stmt)
+        worker = worker_result.scalar_one_or_none()
+
+        if worker is None:
+            raise WorkerNotFoundError(worker_id)
+
+        # 未割り当てのリスト項目を取得
+        # リスト項目から既に割り当てられている項目を除外するサブクエリ
+        assigned_list_item_ids_subquery = (
+            select(ListItemAssignment.list_item_id)
+            .where(ListItemAssignment.worker_id == worker_id)
+            .scalar_subquery()
+        )
+
+        # 未割り当てのリスト項目を取得（論理削除済みを除外）
+        unassigned_items_stmt = (
+            select(ListItem)
+            .where(
+                ListItem.list_id == list_id,
+                ListItem.deleted_at.is_(None),
+                ListItem.id.notin_(assigned_list_item_ids_subquery),
+            )
+            .order_by(ListItem.id)
+            .limit(count)
+        )
+        unassigned_items_result = await self._session.execute(unassigned_items_stmt)
+        unassigned_items = unassigned_items_result.scalars().all()
+
+        # 未割り当て項目がない場合は空リストを返す
+        if not unassigned_items:
+            return []
+
+        # 一括割り当て（効率的な一括INSERT）
+        assignments_to_create = [
+            ListItemAssignment(
+                list_item_id=item.id,
+                worker_id=worker_id,
+            )
+            for item in unassigned_items
+        ]
+
+        self._session.add_all(assignments_to_create)
+        await self._session.flush()
+
+        # 作成された割り当てをrefreshして最新の状態を取得
+        for assignment in assignments_to_create:
+            await self._session.refresh(assignment)
+
+        return [self._to_entity(assignment) for assignment in assignments_to_create]
+
     def _to_entity(self, assignment: ListItemAssignment) -> ListItemAssignmentEntity:
         """
         SQLAlchemyモデルをドメインエンティティに変換

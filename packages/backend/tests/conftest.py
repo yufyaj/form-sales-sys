@@ -42,19 +42,32 @@ async def engine(postgres_container: PostgresContainer) -> AsyncGenerator[Any, N
 
     # テーブルを作成
     async with engine.begin() as conn:
-        # ENUM型を事前に作成（ListStatusのため）
+        # ENUM型を事前に作成
         # PostgreSQLではIF NOT EXISTSが使えないバージョンがあるため、
         # 存在確認してから作成する
-        try:
-            await conn.execute(
-                sqlalchemy.text(
-                    "DO $$ BEGIN CREATE TYPE liststatus AS ENUM ('draft', 'submitted', 'accepted', 'rejected'); "
-                    "EXCEPTION WHEN duplicate_object THEN null; END $$;"
+        enum_types = [
+            ("liststatus", "draft", "submitted", "accepted", "rejected"),
+            ("organizationtype", "sales_support", "client"),
+            ("projectstatus", "planning", "in_progress", "on_hold", "completed", "cancelled"),
+            ("projectpriority", "low", "medium", "high", "critical"),
+            ("workerstatus", "pending", "active", "inactive", "suspended"),
+            ("skilllevel", "beginner", "intermediate", "advanced", "expert"),
+        ]
+
+        for enum_data in enum_types:
+            enum_name = enum_data[0]
+            enum_values = "', '".join(enum_data[1:])
+            try:
+                await conn.execute(
+                    sqlalchemy.text(
+                        f"DO $$ BEGIN CREATE TYPE {enum_name} AS ENUM ('{enum_values}'); "
+                        "EXCEPTION WHEN duplicate_object THEN null; END $$;"
+                    )
                 )
-            )
-        except Exception:
-            # すでに存在する場合はスキップ
-            pass
+            except Exception:
+                # すでに存在する場合はスキップ
+                pass
+
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
