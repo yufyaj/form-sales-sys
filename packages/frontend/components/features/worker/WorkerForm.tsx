@@ -39,15 +39,25 @@ const workerFormSchema = z.object({
     })
     .int("経験月数は整数である必要があります")
     .min(0, "経験月数は0以上である必要があります")
+    .max(600, "経験月数は600ヶ月以下である必要があります")
     .nullable()
     .optional(),
-  specialties: z.string().max(500, "専門分野は500文字以内である必要があります").nullable().optional(),
+  specialties: z
+    .string()
+    .max(500, "専門分野は500文字以内である必要があります")
+    .transform((val) => {
+      // 制御文字を除去
+      return val.replace(/[\x00-\x1F\x7F]/g, '')
+    })
+    .nullable()
+    .optional(),
   maxTasksPerDay: z
     .number({
       invalid_type_error: "1日の最大タスク数は数値である必要があります",
     })
     .int("1日の最大タスク数は整数である必要があります")
     .min(0, "1日の最大タスク数は0以上である必要があります")
+    .max(100, "1日の最大タスク数は100以下である必要があります")
     .nullable()
     .optional(),
   availableHoursPerWeek: z
@@ -56,9 +66,18 @@ const workerFormSchema = z.object({
     })
     .int("週間稼働可能時間は整数である必要があります")
     .min(0, "週間稼働可能時間は0以上である必要があります")
+    .max(168, "週間稼働可能時間は168時間以下である必要があります")
     .nullable()
     .optional(),
-  notes: z.string().max(1000, "メモは1000文字以内である必要があります").nullable().optional(),
+  notes: z
+    .string()
+    .max(1000, "メモは1000文字以内である必要があります")
+    .transform((val) => {
+      // 制御文字を除去
+      return val.replace(/[\x00-\x1F\x7F]/g, '')
+    })
+    .nullable()
+    .optional(),
 });
 
 // 更新用スキーマ（userIdが不要）
