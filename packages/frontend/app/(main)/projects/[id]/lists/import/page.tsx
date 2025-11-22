@@ -97,6 +97,12 @@ export default function CSVImportPage({ params }: CSVImportPageProps) {
   const { id } = use(params)
   const projectId = parseInt(id, 10)
 
+  // プロジェクトIDのバリデーション
+  if (isNaN(projectId) || projectId <= 0) {
+    router.push('/404')
+    return null
+  }
+
   const [importSuccess, setImportSuccess] = useState(false)
   const [importedCount, setImportedCount] = useState(0)
 

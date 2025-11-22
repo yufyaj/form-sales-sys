@@ -61,8 +61,8 @@ export default function CSVDropzone({
       reader.onload = (e) => {
         const content = e.target?.result as string
 
-        // セキュリティチェック
-        const securityCheck = validateCSVContent(content.slice(0, 1024))
+        // セキュリティチェック（ファイル全体をチェック）
+        const securityCheck = validateCSVContent(content)
         if (!securityCheck.valid) {
           onError(securityCheck.errors[0] || 'ファイル内容が無効です')
           setIsProcessing(false)

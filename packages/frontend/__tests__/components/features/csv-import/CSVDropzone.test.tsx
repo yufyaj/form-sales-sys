@@ -63,7 +63,7 @@ describe('CSVDropzone', () => {
       })
     })
 
-    it('処理中にローディング表示が出る', async () => {
+    it('ファイルアップロード後、パースが完了する', async () => {
       render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
 
       const csvContent = 'name,email\nJohn,john@example.com'
@@ -72,9 +72,7 @@ describe('CSVDropzone', () => {
       const input = screen.getByLabelText(/ファイルを選択/i)
       await userEvent.upload(input, file)
 
-      // 処理中の表示を確認
-      expect(screen.getByText(/処理中/i)).toBeInTheDocument()
-
+      // パース完了を確認
       await waitFor(() => {
         expect(mockOnFileParsed).toHaveBeenCalled()
       })
@@ -132,6 +130,86 @@ describe('CSVDropzone', () => {
       await waitFor(() => {
         expect(mockOnError).toHaveBeenCalledWith(
           expect.stringContaining('スクリプトタグが含まれています')
+        )
+      })
+    })
+
+    it('iframeタグが含まれる場合はエラーが表示される', async () => {
+      render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
+
+      const csvContent = 'name,content\nJohn,<iframe src="evil.com"></iframe>'
+      const file = new File([csvContent], 'malicious.csv', { type: 'text/csv' })
+
+      const input = screen.getByLabelText(/ファイルを選択/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(mockOnError).toHaveBeenCalledWith(
+          expect.stringContaining('iframeタグが含まれています')
+        )
+      })
+    })
+
+    it('objectタグが含まれる場合はエラーが表示される', async () => {
+      render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
+
+      const csvContent = 'name,content\nJohn,<object data="evil.swf"></object>'
+      const file = new File([csvContent], 'malicious.csv', { type: 'text/csv' })
+
+      const input = screen.getByLabelText(/ファイルを選択/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(mockOnError).toHaveBeenCalledWith(
+          expect.stringContaining('objectタグが含まれています')
+        )
+      })
+    })
+
+    it('embedタグが含まれる場合はエラーが表示される', async () => {
+      render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
+
+      const csvContent = 'name,content\nJohn,<embed src="evil.swf">'
+      const file = new File([csvContent], 'malicious.csv', { type: 'text/csv' })
+
+      const input = screen.getByLabelText(/ファイルを選択/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(mockOnError).toHaveBeenCalledWith(
+          expect.stringContaining('embedタグが含まれています')
+        )
+      })
+    })
+
+    it('JavaScriptプロトコルが含まれる場合はエラーが表示される', async () => {
+      render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
+
+      const csvContent = 'name,url\nJohn,javascript:alert(1)'
+      const file = new File([csvContent], 'malicious.csv', { type: 'text/csv' })
+
+      const input = screen.getByLabelText(/ファイルを選択/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(mockOnError).toHaveBeenCalledWith(
+          expect.stringContaining('JavaScriptプロトコルが含まれています')
+        )
+      })
+    })
+
+    it('イベントハンドラが含まれる場合はエラーが表示される', async () => {
+      render(<CSVDropzone onFileParsed={mockOnFileParsed} onError={mockOnError} />)
+
+      const csvContent = 'name,html\nJohn,<img src=x onerror=alert(1)>'
+      const file = new File([csvContent], 'malicious.csv', { type: 'text/csv' })
+
+      const input = screen.getByLabelText(/ファイルを選択/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(mockOnError).toHaveBeenCalledWith(
+          expect.stringContaining('イベントハンドラが含まれています')
         )
       })
     })

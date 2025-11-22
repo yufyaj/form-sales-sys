@@ -192,10 +192,16 @@ export type CSVClientOrganizationData = z.infer<typeof csvClientOrganizationSche
 export type CSVClientContactData = z.infer<typeof csvClientContactSchema>
 
 /**
- * CSVセキュリティ: 危険な文字列をサニタイズする
- * CSVインジェクション対策
+ * CSVエクスポート用: 危険な文字列をサニタイズする
+ * CSVインジェクション対策（Excel/Google Sheets等でCSVを開く際の数式実行防止）
+ *
+ * 注意: この関数はCSVエクスポート時に使用してください。
+ * インポート時には使用しないでください（データに不要なシングルクォートが含まれます）
+ *
+ * @param value - サニタイズする値
+ * @returns サニタイズされた値
  */
-export function sanitizeCSVCell(value: string): string {
+export function sanitizeCSVCellForExport(value: string): string {
   if (typeof value !== 'string') return String(value)
 
   const dangerousChars = ['=', '+', '-', '@', '\t', '\r']
@@ -222,6 +228,9 @@ export function validateCSVContent(content: string): {
     { pattern: /<script/i, message: 'スクリプトタグが含まれています' },
     { pattern: /javascript:/i, message: 'JavaScriptプロトコルが含まれています' },
     { pattern: /on\w+\s*=/i, message: 'イベントハンドラが含まれています' },
+    { pattern: /<iframe/i, message: 'iframeタグが含まれています' },
+    { pattern: /<object/i, message: 'objectタグが含まれています' },
+    { pattern: /<embed/i, message: 'embedタグが含まれています' },
   ]
 
   for (const { pattern, message } of dangerousPatterns) {
