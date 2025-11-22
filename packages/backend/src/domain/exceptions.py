@@ -311,6 +311,14 @@ class DuplicateAssignmentError(DomainException):
         )
 
 
+class ListScriptNotFoundError(DomainException):
+    """リストスクリプトが見つからない場合の例外"""
+
+    def __init__(self, script_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("List script not found", {"script_id": script_id})
+
+
 # ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
