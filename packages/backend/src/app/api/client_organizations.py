@@ -77,13 +77,13 @@ async def get_client_organization(
     description="営業支援会社の顧客組織一覧を取得します（ページネーション対応）",
 )
 async def list_client_organizations(
-    skip: Annotated[int, Query(description="スキップ件数", ge=0)] = 0,
-    limit: Annotated[int, Query(description="取得件数", ge=1, le=100)] = 50,
-    include_deleted: Annotated[bool, Query(description="削除済みを含める")] = False,
     use_cases: Annotated[
         ClientOrganizationUseCases, Depends(get_client_organization_use_cases)
     ],
     current_user: Annotated[UserEntity, Depends(get_current_active_user)],
+    skip: Annotated[int, Query(description="スキップ件数", ge=0)] = 0,
+    limit: Annotated[int, Query(description="取得件数", ge=1, le=100)] = 50,
+    include_deleted: Annotated[bool, Query(description="削除済みを含める")] = False,
 ) -> ClientOrganizationListResponse:
     """顧客組織一覧を取得（ページネーション対応）"""
     client_orgs, total = await use_cases.list_client_organizations(

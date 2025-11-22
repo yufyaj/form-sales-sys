@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator, Generator
 from typing import Any
 
 import pytest
+import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
@@ -41,6 +42,19 @@ async def engine(postgres_container: PostgresContainer) -> AsyncGenerator[Any, N
 
     # テーブルを作成
     async with engine.begin() as conn:
+        # ENUM型を事前に作成（ListStatusのため）
+        # PostgreSQLではIF NOT EXISTSが使えないバージョンがあるため、
+        # 存在確認してから作成する
+        try:
+            await conn.execute(
+                sqlalchemy.text(
+                    "DO $$ BEGIN CREATE TYPE liststatus AS ENUM ('draft', 'submitted', 'accepted', 'rejected'); "
+                    "EXCEPTION WHEN duplicate_object THEN null; END $$;"
+                )
+            )
+        except Exception:
+            # すでに存在する場合はスキップ
+            pass
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
