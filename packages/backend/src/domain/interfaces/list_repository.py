@@ -155,3 +155,29 @@ class IListRepository(ABC):
             リストに紐づくリストアイテム（list_items）とカスタム値（list_item_custom_values）も一緒に複製します。
         """
         pass
+
+    @abstractmethod
+    async def update_status(
+        self,
+        list_id: int,
+        status: "ListStatus",  # noqa: F821
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストステータスを更新
+
+        Args:
+            list_id: リストID
+            status: 新しいステータス
+            requesting_organization_id: リクエスト元の組織ID（テナント分離用）
+
+        Returns:
+            ListEntity: 更新されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+
+        Note:
+            IDOR脆弱性対策として、requesting_organization_idで必ずテナント分離を行います。
+        """
+        pass

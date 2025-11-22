@@ -8,6 +8,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.domain.entities.list_entity import ListStatus
+
 
 # Base schema
 class ListBase(BaseModel):
@@ -124,6 +126,7 @@ class ListResponse(BaseModel):
     organization_id: int = Field(..., description="Organization ID of sales support company")
     name: str = Field(..., description="List name")
     description: str | None = Field(None, description="List description")
+    status: ListStatus = Field(..., description="List status (draft/submitted/accepted/rejected)")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Update timestamp")
     deleted_at: datetime | None = Field(None, description="Deletion timestamp (soft delete)")
@@ -136,6 +139,7 @@ class ListResponse(BaseModel):
                 "organization_id": 10,
                 "name": "January 2025 Campaign Target Companies",
                 "description": "List for new customer development",
+                "status": "draft",
                 "created_at": "2025-11-03T10:00:00Z",
                 "updated_at": "2025-11-10T15:30:00Z",
                 "deleted_at": None,
@@ -161,6 +165,7 @@ class ListListResponse(BaseModel):
                         "organization_id": 10,
                         "name": "January 2025 Campaign Target Companies",
                         "description": "List for new customer development",
+                        "status": "draft",
                         "created_at": "2025-11-03T10:00:00Z",
                         "updated_at": "2025-11-10T15:30:00Z",
                         "deleted_at": None,

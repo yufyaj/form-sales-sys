@@ -8,8 +8,12 @@ from src.application.schemas.list import (
     ListCreateRequest,
     ListUpdateRequest,
 )
-from src.domain.entities.list_entity import ListEntity
-from src.domain.exceptions import ListNotFoundError
+from src.domain.entities.list_entity import ListEntity, ListStatus
+from src.domain.exceptions import (
+    ListCannotBeEditedError,
+    ListInvalidStatusTransitionError,
+    ListNotFoundError,
+)
 from src.domain.interfaces.list_repository import IListRepository
 
 
@@ -156,6 +160,13 @@ class ListUseCases:
         if list_entity is None:
             raise ListNotFoundError(list_id)
 
+        # 編集可能かチェック（検収済みの場合は編集不可）
+        if not list_entity.is_editable():
+            raise ListCannotBeEditedError(
+                list_id=list_id,
+                reason=f"List status is {list_entity.status.value}",
+            )
+
         # Update fields
         if request.name is not None:
             list_entity.name = request.name
@@ -244,3 +255,135 @@ class ListUseCases:
         )
 
         return duplicated_list
+
+    async def submit_list(
+        self,
+        list_id: int,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストを提出（draft/rejected -> submitted）
+
+        Args:
+            list_id: リストID
+            requesting_organization_id: リクエスト元の組織ID
+
+        Returns:
+            提出されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+            ListInvalidStatusTransitionError: 提出できないステータスの場合
+        """
+        # リストを取得
+        list_entity = await self._list_repo.find_by_id(
+            list_id=list_id,
+            requesting_organization_id=requesting_organization_id,
+        )
+        if list_entity is None:
+            raise ListNotFoundError(list_id)
+
+        # 提出可能かチェック
+        if not list_entity.can_submit():
+            raise ListInvalidStatusTransitionError(
+                list_id=list_id,
+                current_status=list_entity.status.value,
+                target_status=ListStatus.SUBMITTED.value,
+            )
+
+        # ステータスを更新
+        updated_list = await self._list_repo.update_status(
+            list_id=list_id,
+            status=ListStatus.SUBMITTED,
+            requesting_organization_id=requesting_organization_id,
+        )
+
+        return updated_list
+
+    async def accept_list(
+        self,
+        list_id: int,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストを検収（submitted -> accepted）
+
+        Args:
+            list_id: リストID
+            requesting_organization_id: リクエスト元の組織ID
+
+        Returns:
+            検収されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+            ListInvalidStatusTransitionError: 検収できないステータスの場合
+        """
+        # リストを取得
+        list_entity = await self._list_repo.find_by_id(
+            list_id=list_id,
+            requesting_organization_id=requesting_organization_id,
+        )
+        if list_entity is None:
+            raise ListNotFoundError(list_id)
+
+        # 検収可能かチェック
+        if not list_entity.can_accept():
+            raise ListInvalidStatusTransitionError(
+                list_id=list_id,
+                current_status=list_entity.status.value,
+                target_status=ListStatus.ACCEPTED.value,
+            )
+
+        # ステータスを更新
+        updated_list = await self._list_repo.update_status(
+            list_id=list_id,
+            status=ListStatus.ACCEPTED,
+            requesting_organization_id=requesting_organization_id,
+        )
+
+        return updated_list
+
+    async def reject_list(
+        self,
+        list_id: int,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストを差し戻し（submitted -> rejected）
+
+        Args:
+            list_id: リストID
+            requesting_organization_id: リクエスト元の組織ID
+
+        Returns:
+            差し戻されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+            ListInvalidStatusTransitionError: 差し戻しできないステータスの場合
+        """
+        # リストを取得
+        list_entity = await self._list_repo.find_by_id(
+            list_id=list_id,
+            requesting_organization_id=requesting_organization_id,
+        )
+        if list_entity is None:
+            raise ListNotFoundError(list_id)
+
+        # 差し戻し可能かチェック
+        if not list_entity.can_reject():
+            raise ListInvalidStatusTransitionError(
+                list_id=list_id,
+                current_status=list_entity.status.value,
+                target_status=ListStatus.REJECTED.value,
+            )
+
+        # ステータスを更新
+        updated_list = await self._list_repo.update_status(
+            list_id=list_id,
+            status=ListStatus.REJECTED,
+            requesting_organization_id=requesting_organization_id,
+        )
+
+        return updated_list
