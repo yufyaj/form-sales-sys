@@ -9,9 +9,13 @@ Note:
     呼び出し側（ユースケース層）でトランザクションの開始・コミット・ロールバックを行ってください。
     このリポジトリでは flush() を使用しますが、commit() は呼び出し側に委ねます。
 """
+import logging
+
 from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.domain.entities.list_item_assignment_entity import ListItemAssignmentEntity
 from src.domain.exceptions import (
@@ -205,7 +209,24 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
         assignment = result.scalar_one_or_none()
 
         if assignment is None:
+            logger.warning(
+                "Assignment not found or access denied for unassignment",
+                extra={
+                    "assignment_id": assignment_id,
+                    "organization_id": requesting_organization_id,
+                },
+            )
             raise ListItemAssignmentNotFoundError(assignment_id)
+
+        logger.info(
+            "Unassigning worker from list item",
+            extra={
+                "assignment_id": assignment_id,
+                "list_item_id": assignment.list_item_id,
+                "worker_id": assignment.worker_id,
+                "organization_id": requesting_organization_id,
+            },
+        )
 
         await self._session.delete(assignment)
         await self._session.flush()
@@ -256,6 +277,16 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
         """
         from src.domain.exceptions import ListNotFoundError
 
+        logger.info(
+            "Bulk assignment requested",
+            extra={
+                "list_id": list_id,
+                "worker_id": worker_id,
+                "count": count,
+                "organization_id": requesting_organization_id,
+            },
+        )
+
         # マルチテナント対応: リストの所属組織を検証
         list_stmt = select(List).where(
             List.id == list_id,
@@ -266,6 +297,13 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
         list_obj = list_result.scalar_one_or_none()
 
         if list_obj is None:
+            logger.warning(
+                "List not found or access denied",
+                extra={
+                    "list_id": list_id,
+                    "organization_id": requesting_organization_id,
+                },
+            )
             raise ListNotFoundError(list_id)
 
         # マルチテナント対応: ワーカーの所属組織を検証
@@ -278,6 +316,13 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
         worker = worker_result.scalar_one_or_none()
 
         if worker is None:
+            logger.warning(
+                "Worker not found or access denied",
+                extra={
+                    "worker_id": worker_id,
+                    "organization_id": requesting_organization_id,
+                },
+            )
             raise WorkerNotFoundError(worker_id)
 
         # 未割り当てのリスト項目を取得
@@ -321,6 +366,17 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
         # 作成された割り当てをrefreshして最新の状態を取得
         for assignment in assignments_to_create:
             await self._session.refresh(assignment)
+
+        logger.info(
+            "Bulk assignment completed",
+            extra={
+                "list_id": list_id,
+                "worker_id": worker_id,
+                "requested_count": count,
+                "assigned_count": len(assignments_to_create),
+                "organization_id": requesting_organization_id,
+            },
+        )
 
         return [self._to_entity(assignment) for assignment in assignments_to_create]
 
