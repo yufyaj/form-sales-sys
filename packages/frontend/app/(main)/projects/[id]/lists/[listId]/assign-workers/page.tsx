@@ -25,6 +25,17 @@ export default function AssignWorkersPage({ params }: AssignWorkersPageProps) {
   const projectId = parseInt(id, 10)
   const listIdNum = parseInt(listId, 10)
 
+  // パラメータのバリデーション
+  if (isNaN(projectId) || isNaN(listIdNum)) {
+    return (
+      <div className="container mx-auto max-w-2xl py-8">
+        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+          無効なプロジェクトIDまたはリストIDです
+        </div>
+      </div>
+    )
+  }
+
   const [workers, setWorkers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>('')
@@ -41,7 +52,10 @@ export default function AssignWorkersPage({ params }: AssignWorkersPageProps) {
         setWorkers(response.users)
       } catch (err) {
         setError('ワーカー一覧の取得に失敗しました')
-        console.error('Failed to fetch workers:', err)
+        // 開発環境のみ詳細ログを出力
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch workers:', err)
+        }
       } finally {
         setIsLoading(false)
       }

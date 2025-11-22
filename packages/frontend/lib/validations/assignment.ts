@@ -36,11 +36,19 @@ export const assignmentSchema = z
       .trim()
       .refine(
         (val) => {
+          // 空文字列またはnullの場合はOK
           if (!val) return true
-          const date = new Date(val)
-          return !isNaN(date.getTime()) && date > new Date()
+          // YYYY-MM-DD形式のチェック
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+            return false
+          }
+          // ISO 8601形式で日付を解釈（YYYY-MM-DDT00:00:00Z）
+          const inputDate = new Date(val + 'T00:00:00Z')
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          return !isNaN(inputDate.getTime()) && inputDate >= today
         },
-        { message: '期限は未来の日時を指定してください' }
+        { message: '日付はYYYY-MM-DD形式で、今日以降の日付を指定してください' }
       )
       .optional()
       .nullable(),

@@ -64,7 +64,7 @@ export async function listWorkers(
  * ユーザー詳細を取得
  */
 export async function getUser(userId: number): Promise<User> {
-  return get<User>(`/api/v1/users/${userId}`)
+  return get<User>(`/api/v1/users/${encodeURIComponent(userId)}`)
 }
 
 /**
@@ -81,12 +81,12 @@ export async function updateUser(
   userId: number,
   data: UserUpdateRequest
 ): Promise<User> {
-  return patch<User>(`/api/v1/users/${userId}`, data)
+  return patch<User>(`/api/v1/users/${encodeURIComponent(userId)}`, data)
 }
 
 /**
  * ユーザーを削除
  */
 export async function deleteUser(userId: number): Promise<void> {
-  return del<void>(`/api/v1/users/${userId}`)
+  return del<void>(`/api/v1/users/${encodeURIComponent(userId)}`)
 }

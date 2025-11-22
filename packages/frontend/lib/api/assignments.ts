@@ -57,7 +57,7 @@ export async function listAssignments(
     searchParams.append('hide_assigned', params.hide_assigned.toString())
   }
 
-  const url = `/api/v1/projects/${projectId}/lists/${listId}/assignments${
+  const url = `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments${
     searchParams.toString() ? `?${searchParams.toString()}` : ''
   }`
   return get<AssignmentListResponse>(url)
@@ -72,7 +72,7 @@ export async function getAssignment(
   assignmentId: string
 ): Promise<Assignment> {
   return get<Assignment>(
-    `/api/v1/projects/${projectId}/lists/${listId}/assignments/${assignmentId}`
+    `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments/${encodeURIComponent(assignmentId)}`
   )
 }
 
@@ -85,7 +85,7 @@ export async function createAssignment(
   data: AssignmentCreateRequest
 ): Promise<Assignment> {
   return post<Assignment>(
-    `/api/v1/projects/${projectId}/lists/${listId}/assignments`,
+    `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments`,
     data
   )
 }
@@ -99,7 +99,7 @@ export async function deleteAssignment(
   assignmentId: string
 ): Promise<void> {
   return del<void>(
-    `/api/v1/projects/${projectId}/lists/${listId}/assignments/${assignmentId}`
+    `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments/${encodeURIComponent(assignmentId)}`
   )
 }
 
@@ -112,7 +112,7 @@ export async function bulkDeleteAssignments(
   assignmentIds: string[]
 ): Promise<void> {
   return post<void>(
-    `/api/v1/projects/${projectId}/lists/${listId}/assignments/bulk-delete`,
+    `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments/bulk-delete`,
     { assignment_ids: assignmentIds }
   )
 }
