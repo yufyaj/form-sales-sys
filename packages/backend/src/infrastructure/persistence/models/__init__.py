@@ -19,6 +19,7 @@ from .role import Permission, Role
 from .sales_company_staff import SalesCompanyStaff
 from .user import User
 from .user_role import RolePermission, UserRole
+from .worker import SkillLevel, Worker, WorkerStatus
 
 __all__ = [
     # Base classes
@@ -36,6 +37,9 @@ __all__ = [
     "ClientOrganization",
     "ClientContact",
     "SalesCompanyStaff",
+    "Worker",
+    "WorkerStatus",
+    "SkillLevel",
     "Project",
     "ProjectStatus",
     "ProjectPriority",
