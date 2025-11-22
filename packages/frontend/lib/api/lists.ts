@@ -96,3 +96,17 @@ export async function deleteList(
 ): Promise<void> {
   return del<void>(`/api/v1/projects/${projectId}/lists/${listId}`)
 }
+
+/**
+ * リストを複製
+ */
+export async function duplicateList(
+  projectId: number,
+  listId: number,
+  newName: string
+): Promise<List> {
+  return post<List>(
+    `/api/v1/projects/${projectId}/lists/${listId}/duplicate`,
+    { name: newName }
+  )
+}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Table, { Column } from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import { List } from '@/lib/api/lists'
+import ListDuplicateDialog from './ListDuplicateDialog'
 
 export interface ListTableProps {
   /**
@@ -27,6 +28,10 @@ export interface ListTableProps {
    * 削除ボタンクリック時のコールバック
    */
   onDeleteClick?: (listId: number) => Promise<void>
+  /**
+   * 複製ボタンクリック時のコールバック
+   */
+  onDuplicateClick?: (listId: number, newName: string) => Promise<void>
 }
 
 /**
@@ -38,9 +43,12 @@ export default function ListTable({
   isLoading = false,
   onCreateClick,
   onDeleteClick,
+  onDuplicateClick,
 }: ListTableProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [duplicatingList, setDuplicatingList] = useState<List | null>(null)
 
   /**
    * 日付のフォーマット
@@ -91,6 +99,23 @@ export default function ListTable({
   }
 
   /**
+   * 複製ボタンクリック時の処理
+   */
+  const handleDuplicateClick = (e: React.MouseEvent, list: List) => {
+    e.stopPropagation() // 行クリックイベントの伝播を止める
+    setDuplicatingList(list)
+    setDuplicateDialogOpen(true)
+  }
+
+  /**
+   * 複製実行処理
+   */
+  const handleDuplicate = async (newName: string) => {
+    if (!onDuplicateClick || !duplicatingList) return
+    await onDuplicateClick(duplicatingList.id, newName)
+  }
+
+  /**
    * テーブルのカラム定義
    */
   const columns: Column<List>[] = [
@@ -124,6 +149,15 @@ export default function ListTable({
           >
             編集
           </Button>
+          {onDuplicateClick && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => handleDuplicateClick(e, list)}
+            >
+              複製
+            </Button>
+          )}
           {onDeleteClick && (
             <Button
               variant="outline"
@@ -174,6 +208,16 @@ export default function ListTable({
         onRowClick={handleRowClick}
         emptyMessage="リストがありません。新規作成してください。"
       />
+
+      {/* 複製ダイアログ */}
+      {duplicatingList && (
+        <ListDuplicateDialog
+          open={duplicateDialogOpen}
+          onOpenChange={setDuplicateDialogOpen}
+          originalListName={duplicatingList.name}
+          onDuplicate={handleDuplicate}
+        />
+      )}
     </div>
   )
 }
