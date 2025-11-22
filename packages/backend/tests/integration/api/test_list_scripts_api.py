@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app.api.dependencies import get_current_active_user
 from src.app.core.database import get_db
 from src.app.main import app
+from src.domain.entities.list_entity import ListStatus
 from src.domain.entities.user_entity import UserEntity
-from src.infrastructure.persistence.models.list import List, ListStatus
+from src.infrastructure.persistence.models.list import List
 from src.infrastructure.persistence.models.organization import (
     Organization,
     OrganizationType,
@@ -70,6 +71,7 @@ def create_user_entity(user: User) -> UserEntity:
         id=user.id,
         organization_id=user.organization_id,
         email=user.email,
+        hashed_password=user.hashed_password,
         full_name=user.full_name,
         phone=user.phone,
         avatar_url=user.avatar_url,
@@ -239,6 +241,9 @@ async def test_create_script_cross_tenant_forbidden(
             )
 
         # 404 Not Found を期待（組織Aからは組織Bのリストが見えない）
+        if response.status_code != 404:
+            print(f"Unexpected status: {response.status_code}")
+            print(f"Response body: {response.text}")
         assert response.status_code == 404
     finally:
         app.dependency_overrides.clear()

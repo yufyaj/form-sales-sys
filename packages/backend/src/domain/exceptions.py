@@ -209,7 +209,7 @@ class ProjectCannotBeEditedError(BusinessRuleViolationException):
 # ========================================
 
 
-class ListNotFoundError(DomainException):
+class ListNotFoundError(ResourceNotFoundException):
     """リストが見つからない場合の例外"""
 
     def __init__(self, list_id: int) -> None:
@@ -311,7 +311,7 @@ class DuplicateAssignmentError(DomainException):
         )
 
 
-class ListScriptNotFoundError(DomainException):
+class ListScriptNotFoundError(ResourceNotFoundException):
     """リストスクリプトが見つからない場合の例外"""
 
     def __init__(self, script_id: int) -> None:
