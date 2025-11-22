@@ -288,6 +288,30 @@ class InvalidNoSendSettingError(ValidationException):
 
 
 # ========================================
+# Phase4: ワーカー割り当て例外
+# ========================================
+
+
+class ListItemAssignmentNotFoundError(DomainException):
+    """リスト項目割り当てが見つからない場合の例外"""
+
+    def __init__(self, assignment_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Assignment not found", {"assignment_id": assignment_id})
+
+
+class DuplicateAssignmentError(DomainException):
+    """重複割り当てエラー"""
+
+    def __init__(self, list_item_id: int, worker_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__(
+            "このワーカーは既にこのリスト項目に割り当てられています",
+            {"list_item_id": list_item_id, "worker_id": worker_id},
+        )
+
+
+# ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
 

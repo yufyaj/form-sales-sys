@@ -10,6 +10,7 @@ from .client_organization import ClientOrganization
 from .custom_column_setting import CustomColumnSetting
 from .list import List
 from .list_item import ListItem
+from .list_item_assignment import ListItemAssignment
 from .list_item_custom_value import ListItemCustomValue
 from .list_script import ListScript
 from .ng_list_domain import NgListDomain
@@ -52,4 +53,6 @@ __all__ = [
     "ListScript",
     "NgListDomain",
     "NoSendSetting",
+    # Phase4: Worker Assignment
+    "ListItemAssignment",
 ]
