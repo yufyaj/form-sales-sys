@@ -237,6 +237,23 @@ class ListItemCustomValueNotFoundError(DomainException):
         super().__init__(f"List item custom value with id {list_item_custom_value_id} not found")
 
 
+class ListCannotBeEditedError(BusinessRuleViolationException):
+    """リストが編集不可能な状態の場合の例外"""
+
+    def __init__(self, list_id: int, reason: str = "List is already accepted") -> None:
+        super().__init__(f"List {list_id} cannot be edited: {reason}")
+
+
+class ListInvalidStatusTransitionError(BusinessRuleViolationException):
+    """リストステータスの遷移が不正な場合の例外"""
+
+    def __init__(self, list_id: int, current_status: str, target_status: str) -> None:
+        super().__init__(
+            f"List {list_id} cannot transition from {current_status} to {target_status}",
+            {"current_status": current_status, "target_status": target_status},
+        )
+
+
 class NgListDomainNotFoundError(DomainException):
     """NGリストドメインが見つからない場合の例外"""
 

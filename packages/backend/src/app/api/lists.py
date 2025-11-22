@@ -205,6 +205,75 @@ async def duplicate_list(
     return _to_response(list_entity)
 
 
+@router.post(
+    "/{list_id}/submit",
+    response_model=ListResponse,
+    summary="Submit list",
+    description="Submit a list for review (draft/rejected -> submitted).",
+)
+async def submit_list(
+    list_id: int,
+    current_user: UserEntity = Depends(get_current_active_user),
+    use_cases: ListUseCases = Depends(get_list_use_cases),
+) -> ListResponse:
+    """
+    リストを提出
+
+    - **list_id**: リストID
+    """
+    list_entity = await use_cases.submit_list(
+        list_id=list_id,
+        requesting_organization_id=current_user.organization_id,
+    )
+    return _to_response(list_entity)
+
+
+@router.post(
+    "/{list_id}/accept",
+    response_model=ListResponse,
+    summary="Accept list",
+    description="Accept a submitted list (submitted -> accepted).",
+)
+async def accept_list(
+    list_id: int,
+    current_user: UserEntity = Depends(get_current_active_user),
+    use_cases: ListUseCases = Depends(get_list_use_cases),
+) -> ListResponse:
+    """
+    リストを検収
+
+    - **list_id**: リストID
+    """
+    list_entity = await use_cases.accept_list(
+        list_id=list_id,
+        requesting_organization_id=current_user.organization_id,
+    )
+    return _to_response(list_entity)
+
+
+@router.post(
+    "/{list_id}/reject",
+    response_model=ListResponse,
+    summary="Reject list",
+    description="Reject a submitted list (submitted -> rejected).",
+)
+async def reject_list(
+    list_id: int,
+    current_user: UserEntity = Depends(get_current_active_user),
+    use_cases: ListUseCases = Depends(get_list_use_cases),
+) -> ListResponse:
+    """
+    リストを差し戻し
+
+    - **list_id**: リストID
+    """
+    list_entity = await use_cases.reject_list(
+        list_id=list_id,
+        requesting_organization_id=current_user.organization_id,
+    )
+    return _to_response(list_entity)
+
+
 def _to_response(list_entity: ListEntity) -> ListResponse:
     """
     Convert ListEntity to ListResponse
@@ -220,6 +289,7 @@ def _to_response(list_entity: ListEntity) -> ListResponse:
         organization_id=list_entity.organization_id,
         name=list_entity.name,
         description=list_entity.description,
+        status=list_entity.status,
         created_at=list_entity.created_at,
         updated_at=list_entity.updated_at,
         deleted_at=list_entity.deleted_at,

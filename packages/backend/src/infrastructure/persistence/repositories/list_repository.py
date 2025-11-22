@@ -11,7 +11,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.domain.entities.list_entity import ListEntity
+from src.domain.entities.list_entity import ListEntity, ListStatus
 from src.domain.exceptions import ListNotFoundError
 from src.domain.interfaces.list_repository import IListRepository
 from src.infrastructure.persistence.models.list import List
@@ -101,6 +101,27 @@ class ListRepository(IListRepository):
         lists = result.scalars().all()
 
         return [self._to_entity(lst) for lst in lists]
+
+    async def count_by_organization(
+        self,
+        organization_id: int,
+        include_deleted: bool = False,
+    ) -> int:
+        """組織に属するリストの総件数を取得"""
+        from sqlalchemy import func
+
+        conditions = [
+            List.organization_id == organization_id,
+        ]
+        if not include_deleted:
+            conditions.append(List.deleted_at.is_(None))
+
+        stmt = select(func.count(List.id)).where(and_(*conditions))
+
+        result = await self._session.execute(stmt)
+        count = result.scalar_one()
+
+        return count
 
     async def update(
         self,
@@ -273,6 +294,35 @@ class ListRepository(IListRepository):
 
         return self._to_entity(new_list)
 
+    async def update_status(
+        self,
+        list_id: int,
+        status: ListStatus,
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """リストステータスを更新（マルチテナント対応・IDOR脆弱性対策）"""
+        stmt = (
+            select(List)
+            .where(
+                List.id == list_id,
+                List.organization_id == requesting_organization_id,
+                List.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        db_list = result.scalar_one_or_none()
+
+        if db_list is None:
+            raise ListNotFoundError(list_id)
+
+        # ステータスを更新
+        db_list.status = status
+
+        await self._session.flush()
+        await self._session.refresh(db_list)
+
+        return self._to_entity(db_list)
+
     def _to_entity(self, list_model: List) -> ListEntity:
         """
         SQLAlchemyモデルをドメインエンティティに変換
@@ -284,6 +334,7 @@ class ListRepository(IListRepository):
             organization_id=list_model.organization_id,
             name=list_model.name,
             description=list_model.description,
+            status=list_model.status,
             created_at=list_model.created_at,
             updated_at=list_model.updated_at,
             deleted_at=list_model.deleted_at,

@@ -12,8 +12,13 @@ from src.application.schemas.list import (
     ListUpdateRequest,
 )
 from src.application.use_cases.list_use_cases import ListUseCases
-from src.domain.entities.list_entity import ListEntity
-from src.domain.exceptions import ListNotFoundError
+from src.domain.entities.list_entity import ListEntity, ListStatus
+from src.domain.exceptions import (
+    InsufficientPermissionsError,
+    ListCannotBeEditedError,
+    ListInvalidStatusTransitionError,
+    ListNotFoundError,
+)
 
 
 @pytest.fixture
@@ -82,7 +87,7 @@ class TestListUseCases:
         )
 
         # Act & Assert
-        with pytest.raises(ValueError, match="No permission"):
+        with pytest.raises(InsufficientPermissionsError):
             await list_use_cases.create_list(
                 requesting_organization_id=999,
                 request=request,
@@ -155,6 +160,7 @@ class TestListUseCases:
             ),
         ]
 
+        mock_list_repository.count_by_organization.return_value = 2
         mock_list_repository.list_by_organization.return_value = expected_entities
 
         # Act
@@ -168,6 +174,10 @@ class TestListUseCases:
         # Assert
         assert lists == expected_entities
         assert total == 2
+        mock_list_repository.count_by_organization.assert_called_once_with(
+            organization_id=10,
+            include_deleted=False,
+        )
         mock_list_repository.list_by_organization.assert_called_once_with(
             organization_id=10,
             skip=0,
@@ -231,7 +241,7 @@ class TestListUseCases:
     ) -> None:
         """Validate organization ownership when listing"""
         # Arrange & Act & Assert
-        with pytest.raises(ValueError, match="No permission"):
+        with pytest.raises(InsufficientPermissionsError):
             await list_use_cases.list_lists_by_organization(
                 organization_id=10,
                 requesting_organization_id=999,
@@ -485,7 +495,313 @@ class TestListUseCases:
         call_kwargs = mock_list_repository.duplicate.call_args.kwargs
         generated_name = call_kwargs["new_name"]
         assert generated_name.startswith("元のリストのコピー_")
-        # タイムスタンプ形式（YYYYMMDD_HHMMSS）を確認
+        # タイムスタンプ形式（YYYYMMDD_HHMMSS_FFFFFF）を確認
         import re
 
-        assert re.match(r"元のリストのコピー_\d{8}_\d{6}", generated_name)
+        assert re.match(r"元のリストのコピー_\d{8}_\d{6}_\d{6}", generated_name)
+
+    # ========================================
+    # 検収管理テスト
+    # ========================================
+
+    @pytest.mark.asyncio
+    async def test_accept_list_success(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """リスト検収が成功する（submitted -> accepted）"""
+        # Arrange
+        submitted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="提出済みリスト",
+            status=ListStatus.SUBMITTED,
+        )
+
+        accepted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="提出済みリスト",
+            status=ListStatus.ACCEPTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = submitted_list
+        mock_list_repository.update_status.return_value = accepted_list
+
+        # Act
+        result = await list_use_cases.accept_list(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+
+        # Assert
+        assert result == accepted_list
+        assert result.status == ListStatus.ACCEPTED
+        mock_list_repository.find_by_id.assert_called_once_with(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+        mock_list_repository.update_status.assert_called_once_with(
+            list_id=1,
+            status=ListStatus.ACCEPTED,
+            requesting_organization_id=10,
+        )
+
+    @pytest.mark.asyncio
+    async def test_accept_list_raises_not_found_error(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """リストが存在しない場合に例外を発生させる"""
+        # Arrange
+        mock_list_repository.find_by_id.return_value = None
+
+        # Act & Assert
+        with pytest.raises(ListNotFoundError):
+            await list_use_cases.accept_list(
+                list_id=1,
+                requesting_organization_id=10,
+            )
+
+    @pytest.mark.asyncio
+    async def test_accept_list_raises_invalid_transition_error(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """submitted以外のステータスから検収しようとすると例外を発生させる"""
+        # Arrange
+        draft_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="下書きリスト",
+            status=ListStatus.DRAFT,
+        )
+
+        mock_list_repository.find_by_id.return_value = draft_list
+
+        # Act & Assert
+        with pytest.raises(ListInvalidStatusTransitionError):
+            await list_use_cases.accept_list(
+                list_id=1,
+                requesting_organization_id=10,
+            )
+
+    @pytest.mark.asyncio
+    async def test_reject_list_success(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """リスト差し戻しが成功する（submitted -> rejected）"""
+        # Arrange
+        submitted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="提出済みリスト",
+            status=ListStatus.SUBMITTED,
+        )
+
+        rejected_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="提出済みリスト",
+            status=ListStatus.REJECTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = submitted_list
+        mock_list_repository.update_status.return_value = rejected_list
+
+        # Act
+        result = await list_use_cases.reject_list(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+
+        # Assert
+        assert result == rejected_list
+        assert result.status == ListStatus.REJECTED
+        mock_list_repository.update_status.assert_called_once_with(
+            list_id=1,
+            status=ListStatus.REJECTED,
+            requesting_organization_id=10,
+        )
+
+    @pytest.mark.asyncio
+    async def test_submit_list_success(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """リスト提出が成功する（draft -> submitted）"""
+        # Arrange
+        draft_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="下書きリスト",
+            status=ListStatus.DRAFT,
+        )
+
+        submitted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="下書きリスト",
+            status=ListStatus.SUBMITTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = draft_list
+        mock_list_repository.update_status.return_value = submitted_list
+
+        # Act
+        result = await list_use_cases.submit_list(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+
+        # Assert
+        assert result == submitted_list
+        assert result.status == ListStatus.SUBMITTED
+
+    @pytest.mark.asyncio
+    async def test_submit_list_from_rejected_success(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """差し戻されたリストの再提出が成功する（rejected -> submitted）"""
+        # Arrange
+        rejected_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="差し戻されたリスト",
+            status=ListStatus.REJECTED,
+        )
+
+        submitted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="差し戻されたリスト",
+            status=ListStatus.SUBMITTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = rejected_list
+        mock_list_repository.update_status.return_value = submitted_list
+
+        # Act
+        result = await list_use_cases.submit_list(
+            list_id=1,
+            requesting_organization_id=10,
+        )
+
+        # Assert
+        assert result == submitted_list
+        assert result.status == ListStatus.SUBMITTED
+
+    # ========================================
+    # 編集ロックテスト
+    # ========================================
+
+    @pytest.mark.asyncio
+    async def test_update_list_raises_error_when_accepted(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """検収済みリストは編集できない"""
+        # Arrange
+        accepted_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="検収済みリスト",
+            status=ListStatus.ACCEPTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = accepted_list
+
+        request = ListUpdateRequest(name="新しい名前")
+
+        # Act & Assert
+        with pytest.raises(ListCannotBeEditedError):
+            await list_use_cases.update_list(
+                list_id=1,
+                requesting_organization_id=10,
+                request=request,
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_list_success_when_draft(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """下書きステータスのリストは編集できる"""
+        # Arrange
+        draft_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="下書きリスト",
+            status=ListStatus.DRAFT,
+        )
+
+        updated_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="新しい名前",
+            status=ListStatus.DRAFT,
+        )
+
+        mock_list_repository.find_by_id.return_value = draft_list
+        mock_list_repository.update.return_value = updated_list
+
+        request = ListUpdateRequest(name="新しい名前")
+
+        # Act
+        result = await list_use_cases.update_list(
+            list_id=1,
+            requesting_organization_id=10,
+            request=request,
+        )
+
+        # Assert
+        assert result == updated_list
+        mock_list_repository.update.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_list_success_when_rejected(
+        self,
+        list_use_cases: ListUseCases,
+        mock_list_repository: AsyncMock,
+    ) -> None:
+        """差し戻しステータスのリストは編集できる"""
+        # Arrange
+        rejected_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="差し戻されたリスト",
+            status=ListStatus.REJECTED,
+        )
+
+        updated_list = ListEntity(
+            id=1,
+            organization_id=10,
+            name="修正後の名前",
+            status=ListStatus.REJECTED,
+        )
+
+        mock_list_repository.find_by_id.return_value = rejected_list
+        mock_list_repository.update.return_value = updated_list
+
+        request = ListUpdateRequest(name="修正後の名前")
+
+        # Act
+        result = await list_use_cases.update_list(
+            list_id=1,
+            requesting_organization_id=10,
+            request=request,
+        )
+
+        # Assert
+        assert result == updated_list
+        mock_list_repository.update.assert_called_once()

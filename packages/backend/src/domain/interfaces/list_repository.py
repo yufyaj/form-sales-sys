@@ -81,6 +81,24 @@ class IListRepository(ABC):
         pass
 
     @abstractmethod
+    async def count_by_organization(
+        self,
+        organization_id: int,
+        include_deleted: bool = False,
+    ) -> int:
+        """
+        組織に属するリストの総件数を取得
+
+        Args:
+            organization_id: 営業支援会社の組織ID
+            include_deleted: 削除済みリストを含めるか
+
+        Returns:
+            int: リストの総件数
+        """
+        pass
+
+    @abstractmethod
     async def update(
         self,
         list_entity: ListEntity,
@@ -153,5 +171,31 @@ class IListRepository(ABC):
         Note:
             IDOR脆弱性対策として、requesting_organization_idで必ずテナント分離を行います。
             リストに紐づくリストアイテム（list_items）とカスタム値（list_item_custom_values）も一緒に複製します。
+        """
+        pass
+
+    @abstractmethod
+    async def update_status(
+        self,
+        list_id: int,
+        status: "ListStatus",  # noqa: F821
+        requesting_organization_id: int,
+    ) -> ListEntity:
+        """
+        リストステータスを更新
+
+        Args:
+            list_id: リストID
+            status: 新しいステータス
+            requesting_organization_id: リクエスト元の組織ID（テナント分離用）
+
+        Returns:
+            ListEntity: 更新されたリストエンティティ
+
+        Raises:
+            ListNotFoundError: リストが見つからない場合
+
+        Note:
+            IDOR脆弱性対策として、requesting_organization_idで必ずテナント分離を行います。
         """
         pass

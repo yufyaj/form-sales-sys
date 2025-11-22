@@ -4,8 +4,11 @@
 営業先企業リストを管理するテーブル。
 プロジェクト（営業支援会社）に紐付きます。
 """
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.domain.entities.list_entity import ListStatus
 
 from .base import Base, SoftDeleteMixin, TimestampMixin
 
@@ -37,6 +40,13 @@ class List(Base, TimestampMixin, SoftDeleteMixin):
     )
     description: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="リストの説明"
+    )
+    status: Mapped[ListStatus] = mapped_column(
+        SQLAlchemyEnum(ListStatus),
+        nullable=False,
+        default=ListStatus.DRAFT,
+        server_default="draft",
+        comment="リストステータス(draft/submitted/accepted/rejected)",
     )
 
     # リレーションシップ
