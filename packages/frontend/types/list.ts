@@ -43,3 +43,26 @@ export interface CreateListFormData {
   description?: string
   projectId: string
 }
+
+/**
+ * 検収ステータス
+ */
+export type InspectionStatus =
+  | 'not_started' // 未検収
+  | 'in_progress' // 検収中
+  | 'completed' // 検収完了
+  | 'rejected' // 却下
+
+/**
+ * 検収情報
+ */
+export interface Inspection {
+  id: string
+  listId: string
+  status: InspectionStatus
+  inspectedBy?: string // 検収者
+  inspectedAt?: string // 検収日時
+  comment?: string // コメント
+  createdAt: string
+  updatedAt: string
+}
