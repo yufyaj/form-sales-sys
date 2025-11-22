@@ -7,6 +7,7 @@ import InspectionStatusBadge from '@/components/features/list/InspectionStatusBa
 import CompleteInspectionButton from '@/components/features/list/CompleteInspectionButton'
 import { getInspection, completeInspection } from '@/lib/actions/inspections'
 import { Inspection } from '@/types/list'
+import { validatePositiveInteger, validateDate, sanitizeUserInput } from '@/lib/validation'
 
 interface InspectionPageProps {
   params: Promise<{
@@ -21,15 +22,18 @@ interface InspectionPageProps {
 export default function InspectionPage({ params }: InspectionPageProps) {
   const router = useRouter()
   const { id, listId } = use(params)
-  const projectId = parseInt(id, 10)
-  const listIdNum = parseInt(listId, 10)
+
+  // セキュリティ: 入力検証の強化 - 境界値チェック
+  const projectId = validatePositiveInteger(id, 'projectId')
+  const listIdNum = validatePositiveInteger(listId, 'listId')
 
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
 
-  if (isNaN(projectId) || isNaN(listIdNum)) {
+  // 検証失敗時は404ページへ
+  if (projectId === null || listIdNum === null) {
     notFound()
   }
 
@@ -37,7 +41,8 @@ export default function InspectionPage({ params }: InspectionPageProps) {
   useEffect(() => {
     const fetchInspection = async () => {
       try {
-        const result = await getInspection(listIdNum)
+        // IDOR対策: projectIdとlistIdの両方を渡す
+        const result = await getInspection(projectId, listIdNum)
 
         if (result.success && result.data) {
           setInspection(result.data)
@@ -53,7 +58,7 @@ export default function InspectionPage({ params }: InspectionPageProps) {
     }
 
     fetchInspection()
-  }, [listIdNum])
+  }, [projectId, listIdNum])
 
   /**
    * 検収完了処理
@@ -63,7 +68,8 @@ export default function InspectionPage({ params }: InspectionPageProps) {
       setIsCompleting(true)
       setError(null)
 
-      const result = await completeInspection(listIdNum)
+      // IDOR対策: projectIdとlistIdの両方を渡す
+      const result = await completeInspection(projectId, listIdNum)
 
       if (result.success && result.data) {
         // 成功: 検収情報を更新
@@ -81,17 +87,27 @@ export default function InspectionPage({ params }: InspectionPageProps) {
 
   /**
    * 日時フォーマット
+   * セキュリティ: 無効な日付による異常動作を防ぐため、検証を実施
    */
   const formatDateTime = (dateString?: string): string => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const date = validateDate(dateString)
+
+    if (!date) {
+      return '-'
+    }
+
+    try {
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      // フォーマットエラー時のフォールバック
+      return '-'
+    }
   }
 
   if (isLoading) {
@@ -154,7 +170,8 @@ export default function InspectionPage({ params }: InspectionPageProps) {
                     検収者
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {inspection.inspectedBy || '-'}
+                    {/* セキュリティ: XSS対策 - ユーザー入力をサニタイズ */}
+                    {sanitizeUserInput(inspection.inspectedBy, 100)}
                   </dd>
                 </div>
 
@@ -173,7 +190,8 @@ export default function InspectionPage({ params }: InspectionPageProps) {
                       コメント
                     </dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {inspection.comment}
+                      {/* セキュリティ: XSS対策 - コメントをサニタイズ（最大1000文字） */}
+                      {sanitizeUserInput(inspection.comment, 1000)}
                     </dd>
                   </div>
                 )}

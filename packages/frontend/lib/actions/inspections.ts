@@ -64,8 +64,11 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
 
 /**
  * 検収情報取得
+ * セキュリティ: IDOR対策として、projectIdとlistIdの両方を要求し、
+ * バックエンドでプロジェクトへのアクセス権を検証
  */
 export async function getInspection(
+  projectId: number,
   listId: number
 ): Promise<{ success: boolean; data?: Inspection; error?: string }> {
   try {
@@ -74,8 +77,9 @@ export async function getInspection(
       return { success: false, error: '認証が必要です' }
     }
 
+    // IDOR対策: プロジェクトIDを含むURLで、バックエンド側でアクセス権を検証
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/lists/${listId}/inspection`,
+      `${API_BASE_URL}/api/v1/projects/${projectId}/lists/${listId}/inspection`,
       {
         method: 'GET',
         headers: {
@@ -89,11 +93,23 @@ export async function getInspection(
     const data = await handleApiResponse<Inspection>(response)
     return { success: true, data }
   } catch (error) {
-    // セキュリティ: 機密情報を含まないログ記録
-    console.error('検収情報取得エラー', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    })
+    // セキュリティ: 環境に応じたログ出力（本番環境では機密情報を除外）
+    if (process.env.NODE_ENV === 'production') {
+      // 本番環境: 最小限の情報のみログ出力
+      console.error('検収情報取得エラー', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    } else {
+      // 開発環境: デバッグ用に詳細情報を含める
+      console.error('検収情報取得エラー', {
+        projectId,
+        listId,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      })
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : '検収情報の取得に失敗しました',
@@ -103,8 +119,11 @@ export async function getInspection(
 
 /**
  * 検収完了
+ * セキュリティ: IDOR対策として、projectIdとlistIdの両方を要求し、
+ * バックエンドでプロジェクトへのアクセス権を検証
  */
 export async function completeInspection(
+  projectId: number,
   listId: number,
   comment?: string
 ): Promise<{ success: boolean; data?: Inspection; error?: string }> {
@@ -114,8 +133,9 @@ export async function completeInspection(
       return { success: false, error: '認証が必要です' }
     }
 
+    // IDOR対策: プロジェクトIDを含むURLで、バックエンド側でアクセス権を検証
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/lists/${listId}/inspection/complete`,
+      `${API_BASE_URL}/api/v1/projects/${projectId}/lists/${listId}/inspection/complete`,
       {
         method: 'POST',
         headers: {
@@ -129,15 +149,28 @@ export async function completeInspection(
     const data = await handleApiResponse<Inspection>(response)
 
     // キャッシュ再検証
-    revalidatePath(`/projects/[id]/lists/${listId}/inspection`)
+    revalidatePath(`/projects/${projectId}/lists/${listId}/inspection`)
 
     return { success: true, data }
   } catch (error) {
-    // セキュリティ: 機密情報を含まないログ記録
-    console.error('検収完了エラー', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    })
+    // セキュリティ: 環境に応じたログ出力（本番環境では機密情報を除外）
+    if (process.env.NODE_ENV === 'production') {
+      // 本番環境: 最小限の情報のみログ出力
+      console.error('検収完了エラー', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    } else {
+      // 開発環境: デバッグ用に詳細情報を含める
+      console.error('検収完了エラー', {
+        projectId,
+        listId,
+        comment: comment ? '(あり)' : '(なし)',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      })
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : '検収完了処理に失敗しました',
