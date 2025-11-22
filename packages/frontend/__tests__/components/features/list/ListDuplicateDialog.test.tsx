@@ -169,7 +169,7 @@ describe('ListDuplicateDialog', () => {
       const user = userEvent.setup()
       const mockOnDuplicate = jest
         .fn()
-        .mockRejectedValue(new Error('Server error'))
+        .mockRejectedValue(new Error('Network Error'))
       const mockOnOpenChange = jest.fn()
 
       render(
@@ -188,7 +188,7 @@ describe('ListDuplicateDialog', () => {
       await user.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument()
+        expect(screen.getByText('ネットワークエラーが発生しました')).toBeInTheDocument()
       })
 
       // エラー時はダイアログは閉じない（falseで呼ばれていない）
@@ -236,7 +236,7 @@ describe('ListDuplicateDialog', () => {
       const user = userEvent.setup()
       render(<ListDuplicateDialog {...defaultProps} />)
 
-      const closeButton = screen.getByRole('button', { name: '閉じる' })
+      const closeButton = screen.getByRole('button', { name: 'ダイアログを閉じる' })
       await user.click(closeButton)
 
       expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
@@ -273,7 +273,7 @@ describe('ListDuplicateDialog', () => {
       const user = userEvent.setup()
       const mockOnDuplicate = jest
         .fn()
-        .mockRejectedValue(new Error('Server error'))
+        .mockRejectedValue(new Error('Network Error'))
 
       const { rerender } = render(
         <ListDuplicateDialog
@@ -292,7 +292,7 @@ describe('ListDuplicateDialog', () => {
 
       // エラーが表示される
       await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument()
+        expect(screen.getByText('ネットワークエラーが発生しました')).toBeInTheDocument()
       })
 
       // ダイアログを閉じる
@@ -314,7 +314,170 @@ describe('ListDuplicateDialog', () => {
       )
 
       // エラーが消えている
-      expect(screen.queryByText('Server error')).not.toBeInTheDocument()
+      expect(screen.queryByText('ネットワークエラーが発生しました')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('セキュリティテスト', () => {
+    it('制御文字を含む入力が適切に処理される', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest.fn().mockResolvedValue(undefined)
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const input = screen.getByLabelText('新しいリスト名')
+      await user.clear(input)
+      // 制御文字を含む文字列を入力
+      await user.type(input, 'Test\x00\x01\x1F\x7FList')
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      // 制御文字が除去されて送信されることを確認
+      await waitFor(() => {
+        expect(mockOnDuplicate).toHaveBeenCalledWith('TestList')
+      })
+    })
+
+    it('255文字ちょうどの入力が許可される', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest.fn().mockResolvedValue(undefined)
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const exactLength = 'あ'.repeat(255)
+      const input = screen.getByLabelText('新しいリスト名')
+
+      await user.clear(input)
+      await user.type(input, exactLength)
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockOnDuplicate).toHaveBeenCalledWith(exactLength)
+      })
+
+      expect(screen.queryByText(/255文字以内/)).not.toBeInTheDocument()
+    })
+
+    it('254文字の入力が許可される', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest.fn().mockResolvedValue(undefined)
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const validLength = 'あ'.repeat(254)
+      const input = screen.getByLabelText('新しいリスト名')
+
+      await user.clear(input)
+      await user.type(input, validLength)
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockOnDuplicate).toHaveBeenCalledWith(validLength)
+      })
+
+      expect(screen.queryByText(/255文字以内/)).not.toBeInTheDocument()
+    })
+
+    it('前後の空白がトリミングされる', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest.fn().mockResolvedValue(undefined)
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const input = screen.getByLabelText('新しいリスト名')
+      await user.clear(input)
+      await user.type(input, '  テストリスト  ')
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockOnDuplicate).toHaveBeenCalledWith('テストリスト')
+      })
+    })
+
+    it('既知のエラーメッセージが適切にマッピングされる', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest
+        .fn()
+        .mockRejectedValue(new Error('List name already exists'))
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const input = screen.getByLabelText('新しいリスト名')
+      await user.clear(input)
+      await user.type(input, '新しいリスト名')
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('このリスト名は既に使用されています')
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('未知のエラーメッセージがデフォルトメッセージに変換される', async () => {
+      const user = userEvent.setup()
+      const mockOnDuplicate = jest
+        .fn()
+        .mockRejectedValue(new Error('Unknown database error'))
+
+      render(
+        <ListDuplicateDialog
+          {...defaultProps}
+          onDuplicate={mockOnDuplicate}
+        />
+      )
+
+      const input = screen.getByLabelText('新しいリスト名')
+      await user.clear(input)
+      await user.type(input, '新しいリスト名')
+
+      const submitButton = screen.getByRole('button', { name: '複製' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('リストの複製に失敗しました')
+        ).toBeInTheDocument()
+      })
+
+      // 元のエラーメッセージが表示されないことを確認（情報漏洩防止）
+      expect(
+        screen.queryByText('Unknown database error')
+      ).not.toBeInTheDocument()
     })
   })
 })

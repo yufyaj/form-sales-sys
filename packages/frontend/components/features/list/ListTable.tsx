@@ -154,6 +154,7 @@ export default function ListTable({
               variant="outline"
               size="sm"
               onClick={(e) => handleDuplicateClick(e, list)}
+              aria-label={`${list.name}を複製`}
             >
               複製
             </Button>
