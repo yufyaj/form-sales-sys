@@ -22,7 +22,7 @@ class ListScriptBase(BaseModel):
     )
     content: str = Field(
         min_length=1,
-        max_length=100000,
+        max_length=10000,  # DoS攻撃対策として10,000文字に制限（A4用紙約5ページ分）
         description="スクリプト本文（営業トークの台本）",
         examples=["お世話になっております。〇〇社の△△と申します。"],
     )
@@ -70,7 +70,7 @@ class ListScriptUpdate(BaseModel):
     content: Optional[str] = Field(
         None,
         min_length=1,
-        max_length=100000,
+        max_length=10000,  # DoS攻撃対策として10,000文字に制限
         description="スクリプト本文",
     )
 

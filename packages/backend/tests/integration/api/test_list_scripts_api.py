@@ -494,3 +494,305 @@ async def test_create_script_validation_error(
         assert response.status_code == 422
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_script_with_null_character(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """NULL文字攻撃のテスト（セキュリティ）"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # NULL文字を含むタイトル
+            response = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "test\x00injection",  # NULL文字攻撃
+                    "content": "テスト内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 422 Unprocessable Entity を期待（バリデーションエラー）
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_script_with_control_characters(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """制御文字攻撃のテスト（セキュリティ）"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # 制御文字を含むタイトル
+            response = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "test\x1fcontrol",  # 制御文字攻撃
+                    "content": "テスト内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 422 Unprocessable Entity を期待（バリデーションエラー）
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_script_exceeds_max_length(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """最大長超過のテスト（DoS攻撃対策）"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # タイトル最大長（255文字）超過
+            response_title = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "a" * 256,  # 256文字（255文字超過）
+                    "content": "テスト内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+            # コンテンツ最大長（10,000文字）超過
+            response_content = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "テストタイトル",
+                    "content": "a" * 10001,  # 10,001文字（10,000文字超過）
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 両方とも422 Unprocessable Entity を期待
+        assert response_title.status_code == 422
+        assert response_content.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_update_script_partial_title_only(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """部分更新（タイトルのみ）のテスト"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # スクリプトを作成
+            create_response = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "初期タイトル",
+                    "content": "初期内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            created_script = create_response.json()
+
+            # タイトルのみ更新（コンテンツは変更しない）
+            response = await client.patch(
+                f"/api/v1/list-scripts/{created_script['id']}",
+                json={
+                    "title": "更新後タイトル",
+                    # contentは省略
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # レスポンス検証
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "更新後タイトル"
+        assert data["content"] == "初期内容"  # コンテンツは変更されていない
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_update_script_partial_content_only(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """部分更新（コンテンツのみ）のテスト"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # スクリプトを作成
+            create_response = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "初期タイトル",
+                    "content": "初期内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            created_script = create_response.json()
+
+            # コンテンツのみ更新（タイトルは変更しない）
+            response = await client.patch(
+                f"/api/v1/list-scripts/{created_script['id']}",
+                json={
+                    # titleは省略
+                    "content": "更新後内容",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # レスポンス検証
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "初期タイトル"  # タイトルは変更されていない
+        assert data["content"] == "更新後内容"
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_cannot_get_deleted_script(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    test_list: List,
+) -> None:
+    """削除済みスクリプトへのアクセステスト"""
+    auth_user, org = auth_user_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # スクリプトを作成
+            create_response = await client.post(
+                "/api/v1/list-scripts",
+                json={
+                    "list_id": test_list.id,
+                    "title": "削除対象",
+                    "content": "削除されます",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            created_script = create_response.json()
+            script_id = created_script["id"]
+
+            # スクリプトを削除
+            delete_response = await client.delete(
+                f"/api/v1/list-scripts/{script_id}",
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert delete_response.status_code == 204
+
+            # 削除後に取得試行（404を期待）
+            get_response = await client.get(
+                f"/api/v1/list-scripts/{script_id}",
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert get_response.status_code == 404
+
+            # 削除後に更新試行（404を期待）
+            update_response = await client.patch(
+                f"/api/v1/list-scripts/{script_id}",
+                json={"title": "更新試行"},
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert update_response.status_code == 404
+
+            # 削除後に再削除試行（404を期待）
+            delete_again_response = await client.delete(
+                f"/api/v1/list-scripts/{script_id}",
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert delete_again_response.status_code == 404
+    finally:
+        app.dependency_overrides.clear()

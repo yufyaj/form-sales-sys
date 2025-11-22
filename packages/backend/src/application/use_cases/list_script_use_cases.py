@@ -5,6 +5,7 @@
 """
 
 import logging
+from datetime import datetime, timezone
 
 from src.application.schemas.list_script import (
     ListScriptCreate,
@@ -61,14 +62,18 @@ class ListScriptUseCases:
             requesting_organization_id=requesting_organization_id,
         )
         if list_entity is None:
-            # セキュリティログ: 権限エラー
+            # セキュリティログ: 権限エラー（構造化ログ）
             logger.warning(
                 "Unauthorized access attempt to list",
                 extra={
-                    "event": "list_script_unauthorized_access",
+                    "event_type": "security.unauthorized_access",
+                    "event_category": "list_script",
                     "organization_id": requesting_organization_id,
-                    "list_id": request.list_id,
+                    "resource_type": "list",
+                    "resource_id": request.list_id,
                     "action": "create_script",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "severity": "warning",
                 }
             )
             raise ListNotFoundError(request.list_id)
@@ -80,15 +85,19 @@ class ListScriptUseCases:
             content=request.content,
         )
 
-        # セキュリティログ: 成功
+        # 監査ログ: スクリプト作成成功（構造化ログ）
         logger.info(
             "List script created successfully",
             extra={
-                "event": "list_script_created",
+                "event_type": "audit.list_script.created",
+                "event_category": "list_script",
                 "organization_id": requesting_organization_id,
+                "resource_type": "list_script",
+                "resource_id": script.id,
                 "list_id": request.list_id,
-                "script_id": script.id,
-                "title": script.title,
+                "action": "create",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "severity": "info",
             }
         )
 
@@ -123,14 +132,18 @@ class ListScriptUseCases:
             requesting_organization_id=requesting_organization_id,
         )
         if list_entity is None:
-            # セキュリティログ: 権限エラー
+            # セキュリティログ: 権限エラー（構造化ログ）
             logger.warning(
                 "Unauthorized access attempt to list script",
                 extra={
-                    "event": "list_script_unauthorized_access",
+                    "event_type": "security.unauthorized_access",
+                    "event_category": "list_script",
                     "organization_id": requesting_organization_id,
-                    "script_id": script_id,
+                    "resource_type": "list_script",
+                    "resource_id": script_id,
                     "action": "get_script",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "severity": "warning",
                 }
             )
             raise ListScriptNotFoundError(script_id)
@@ -201,14 +214,19 @@ class ListScriptUseCases:
         if updated_script is None:
             raise ListScriptNotFoundError(script_id)
 
-        # セキュリティログ: 更新成功
+        # 監査ログ: スクリプト更新成功（構造化ログ）
         logger.info(
             "List script updated successfully",
             extra={
-                "event": "list_script_updated",
+                "event_type": "audit.list_script.updated",
+                "event_category": "list_script",
                 "organization_id": requesting_organization_id,
-                "script_id": script_id,
+                "resource_type": "list_script",
+                "resource_id": script_id,
                 "list_id": script.list_id,
+                "action": "update",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "severity": "info",
             }
         )
 
@@ -238,14 +256,18 @@ class ListScriptUseCases:
         if not success:
             raise ListScriptNotFoundError(script_id)
 
-        # セキュリティログ: 削除成功
+        # 監査ログ: スクリプト削除成功（構造化ログ）
         logger.info(
             "List script deleted successfully",
             extra={
-                "event": "list_script_deleted",
+                "event_type": "audit.list_script.deleted",
+                "event_category": "list_script",
                 "organization_id": requesting_organization_id,
-                "script_id": script_id,
+                "resource_type": "list_script",
+                "resource_id": script_id,
                 "list_id": script.list_id,
-                "title": script.title,
+                "action": "delete",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "severity": "info",
             }
         )
