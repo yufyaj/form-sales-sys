@@ -42,7 +42,7 @@ class List(Base, TimestampMixin, SoftDeleteMixin):
         Text, nullable=True, comment="リストの説明"
     )
     status: Mapped[ListStatus] = mapped_column(
-        SQLAlchemyEnum(ListStatus, values_callable=lambda x: [e.value for e in x]),
+        SQLAlchemyEnum(ListStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=ListStatus.DRAFT,
         server_default="draft",

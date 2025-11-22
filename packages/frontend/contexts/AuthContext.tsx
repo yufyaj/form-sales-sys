@@ -46,18 +46,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
         })
 
         if (response.status === 501) {
-          // 認証が未実装の場合はモックユーザーを使用（開発中のみ）
-          logWarn(
-            '警告: 認証が未実装です。モックユーザーを使用しています。' +
-            '本番環境にデプロイする前に必ず実装してください。'
-          )
-          // TODO: 開発中のみモックユーザーを設定（本番では削除）
-          setUser({
-            id: '1',
-            email: 'user@example.com',
-            name: 'テストユーザー',
-            role: 'sales_company',
-          })
+          // 本番環境では認証が必須
+          if (process.env.NODE_ENV === 'production') {
+            logError('本番環境で認証が未実装です')
+            setError('認証システムが利用できません')
+            router.push('/login')
+            setIsLoading(false)
+            return
+          }
+
+          // 開発環境のみモックユーザーを許可
+          if (process.env.NODE_ENV === 'development') {
+            logWarn(
+              '警告: 認証が未実装です。モックユーザーを使用しています。' +
+              '本番環境にデプロイする前に必ず実装してください。'
+            )
+            setUser({
+              id: '1',
+              email: 'user@example.com',
+              name: 'テストユーザー',
+              role: 'sales_company',
+            })
+            setIsLoading(false)
+            return
+          }
+
+          // その他の環境では拒否
+          logError('認証が未実装です')
+          router.push('/login')
           setIsLoading(false)
           return
         }
