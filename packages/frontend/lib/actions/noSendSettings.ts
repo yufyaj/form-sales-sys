@@ -1,5 +1,10 @@
 /**
  * 送信禁止設定管理のServer Actions
+ *
+ * セキュリティ対策:
+ * - Next.js Server ActionsによるCSRF保護（内部的にトークン検証）
+ * - Cookie認証トークンによる認可
+ * - エラー情報の適切な隠蔽（機密情報の漏洩防止）
  */
 
 'use server'
@@ -15,7 +20,7 @@ import {
   UpdateNoSendSettingRequest,
 } from '@/types/noSendSetting'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:8000'
 
 /**
  * 認証トークンを取得

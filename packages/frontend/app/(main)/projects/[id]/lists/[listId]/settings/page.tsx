@@ -21,6 +21,7 @@ import {
   DayOfWeek,
   DAY_OF_WEEK_LABELS,
 } from '@/types/noSendSetting'
+import { validateTimeFormat, validateDateRange } from '@/lib/utils'
 
 interface SettingsPageProps {
   params: Promise<{
@@ -93,10 +94,24 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       setIsLoading(true)
       setError(null)
 
+      // 設定名のバリデーション
+      if (!formData.name || formData.name.trim().length === 0) {
+        setError('設定名を入力してください')
+        setIsLoading(false)
+        return
+      }
+
       let result
 
       switch (formType) {
         case NoSendSettingType.DAY_OF_WEEK:
+          // 曜日選択の必須検証
+          if (formData.dayOfWeekList.length === 0) {
+            setError('少なくとも1つの曜日を選択してください')
+            setIsLoading(false)
+            return
+          }
+
           result = await createDayOfWeekSetting({
             list_id: listIdNum,
             name: formData.name,
@@ -106,6 +121,18 @@ export default function SettingsPage({ params }: SettingsPageProps) {
           break
 
         case NoSendSettingType.TIME_RANGE:
+          // 時刻フォーマットの検証
+          if (!validateTimeFormat(formData.timeStart)) {
+            setError('開始時刻は00:00から23:59の形式で入力してください')
+            setIsLoading(false)
+            return
+          }
+          if (!validateTimeFormat(formData.timeEnd)) {
+            setError('終了時刻は00:00から23:59の形式で入力してください')
+            setIsLoading(false)
+            return
+          }
+
           result = await createTimeRangeSetting({
             list_id: listIdNum,
             name: formData.name,
@@ -117,6 +144,18 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
         case NoSendSettingType.SPECIFIC_DATE:
           if (formData.isDateRange) {
+            // 期間の妥当性検証
+            if (!formData.dateRangeStart || !formData.dateRangeEnd) {
+              setError('期間の開始日と終了日を両方入力してください')
+              setIsLoading(false)
+              return
+            }
+            if (!validateDateRange(formData.dateRangeStart, formData.dateRangeEnd)) {
+              setError('開始日は終了日より前の日付を指定してください')
+              setIsLoading(false)
+              return
+            }
+
             result = await createDateRangeSetting({
               list_id: listIdNum,
               name: formData.name,
@@ -125,6 +164,13 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               date_range_end: formData.dateRangeEnd,
             })
           } else {
+            // 単一日付の必須検証
+            if (!formData.specificDate) {
+              setError('日付を入力してください')
+              setIsLoading(false)
+              return
+            }
+
             result = await createSpecificDateSetting({
               list_id: listIdNum,
               name: formData.name,
@@ -319,6 +365,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
+                maxLength={100}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="例: 休日送信禁止"
               />
