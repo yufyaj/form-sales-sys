@@ -110,6 +110,7 @@ class WorkerCreateRequest(BaseModel):
     )
     notes: str | None = Field(
         None,
+        max_length=1000,
         description="管理者用メモ・備考",
         examples=["新規登録ワーカー"],
     )
@@ -136,6 +137,7 @@ class WorkerUpdateRequest(BaseModel):
     )
     specialties: str | None = Field(
         None,
+        max_length=500,
         description="得意分野・専門領域",
         examples=["BtoB営業、IT業界、SaaS"],
     )
@@ -179,6 +181,7 @@ class WorkerUpdateRequest(BaseModel):
     )
     notes: str | None = Field(
         None,
+        max_length=1000,
         description="管理者用メモ・備考",
         examples=["パフォーマンス向上"],
     )
