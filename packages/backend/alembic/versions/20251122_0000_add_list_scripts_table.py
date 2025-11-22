@@ -42,12 +42,46 @@ def upgrade() -> None:
     # インデックス作成
     op.create_index(op.f('ix_list_scripts_list_id'),
                     'list_scripts', ['list_id'], unique=False)
+
+    # 複合インデックス作成（論理削除を考慮したクエリ最適化）
+    # WHERE list_id = ? AND deleted_at IS NULL のようなクエリのパフォーマンス向上
+    op.create_index('ix_list_scripts_list_id_deleted_at',
+                    'list_scripts', ['list_id', 'deleted_at'], unique=False)
+
+    # updated_at自動更新トリガーの作成
+    # SQLAlchemyのORM経由でない直接のSQL更新でも確実にupdated_atが更新されるようにする
+    op.execute("""
+        CREATE OR REPLACE FUNCTION update_list_scripts_updated_at()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    op.execute("""
+        CREATE TRIGGER trigger_update_list_scripts_updated_at
+        BEFORE UPDATE ON list_scripts
+        FOR EACH ROW
+        EXECUTE FUNCTION update_list_scripts_updated_at();
+    """)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### Phase4: スクリプト管理テーブル削除 ###
+
+    # トリガーと関数を削除
+    op.execute("DROP TRIGGER IF EXISTS trigger_update_list_scripts_updated_at ON list_scripts;")
+    op.execute("DROP FUNCTION IF EXISTS update_list_scripts_updated_at();")
+
+    # インデックス削除
+    op.drop_index('ix_list_scripts_list_id_deleted_at',
+                  table_name='list_scripts')
     op.drop_index(op.f('ix_list_scripts_list_id'),
                   table_name='list_scripts')
+
+    # テーブル削除
     op.drop_table('list_scripts')
     # ### end Alembic commands ###

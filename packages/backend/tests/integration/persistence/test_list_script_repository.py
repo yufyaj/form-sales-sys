@@ -282,3 +282,54 @@ class TestListScriptModel:
         # Assert
         assert len(active_scripts) == 1
         assert active_scripts[0].title == "有効なスクリプト"
+
+    @pytest.mark.asyncio
+    async def test_multi_tenant_isolation(self, db_session: AsyncSession) -> None:
+        """異なる組織のスクリプトにアクセスできないこと（マルチテナント分離）"""
+        # Arrange: 2つの異なる組織を作成
+        org1 = Organization(
+            name="組織A",
+            type=OrganizationType.SALES_SUPPORT,
+            email="orga@example.com",
+        )
+        org2 = Organization(
+            name="組織B",
+            type=OrganizationType.SALES_SUPPORT,
+            email="orgb@example.com",
+        )
+        db_session.add_all([org1, org2])
+        await db_session.flush()
+
+        list1 = List(organization_id=org1.id, name="組織Aのリスト")
+        list2 = List(organization_id=org2.id, name="組織Bのリスト")
+        db_session.add_all([list1, list2])
+        await db_session.flush()
+
+        script1 = ListScript(
+            list_id=list1.id, title="組織Aのスクリプト", content="内容A"
+        )
+        script2 = ListScript(
+            list_id=list2.id, title="組織Bのスクリプト", content="内容B"
+        )
+        db_session.add_all([script1, script2])
+        await db_session.flush()
+
+        # Act: 組織Aの視点でクエリ（リポジトリレイヤーで実装する想定）
+        result = await db_session.execute(
+            select(ListScript).join(List).where(List.organization_id == org1.id)
+        )
+        org1_scripts = result.scalars().all()
+
+        # Assert: 組織Aのスクリプトのみ取得できること
+        assert len(org1_scripts) == 1
+        assert org1_scripts[0].title == "組織Aのスクリプト"
+
+        # Act: 組織Bの視点でクエリ
+        result = await db_session.execute(
+            select(ListScript).join(List).where(List.organization_id == org2.id)
+        )
+        org2_scripts = result.scalars().all()
+
+        # Assert: 組織Bのスクリプトのみ取得できること
+        assert len(org2_scripts) == 1
+        assert org2_scripts[0].title == "組織Bのスクリプト"
