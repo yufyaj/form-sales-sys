@@ -137,6 +137,10 @@ class Worker(Base, TimestampMixin, SoftDeleteMixin):
     # リレーションシップ
     user: Mapped["User"] = relationship("User", back_populates="worker")
     organization: Mapped["Organization"] = relationship("Organization", back_populates="workers")
+    list_item_assignments: Mapped[list["ListItemAssignment"]] = relationship(
+        "ListItemAssignment",
+        back_populates="worker"
+    )
 
     def __repr__(self) -> str:
         return f"<Worker(id={self.id}, user_id={self.user_id}, status={self.status})>"

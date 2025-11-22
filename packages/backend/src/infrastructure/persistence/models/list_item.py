@@ -49,6 +49,10 @@ class ListItem(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="list_item",
         cascade="all, delete-orphan",
     )
+    list_item_assignments: Mapped[list["ListItemAssignment"]] = relationship(
+        "ListItemAssignment",
+        back_populates="list_item"
+    )
 
     def __repr__(self) -> str:
         return f"<ListItem(id={self.id}, list_id={self.list_id}, title={self.title})>"
