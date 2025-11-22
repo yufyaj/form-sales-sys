@@ -3,6 +3,11 @@
 
 IListItemAssignmentRepositoryインターフェースの具体的な実装。
 SQLAlchemyを使用してデータベース操作を行います。
+
+Note:
+    トランザクション管理はこのリポジトリの責任範囲外です。
+    呼び出し側（ユースケース層）でトランザクションの開始・コミット・ロールバックを行ってください。
+    このリポジトリでは flush() を使用しますが、commit() は呼び出し側に委ねます。
 """
 from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
@@ -92,8 +97,11 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
             await self._session.refresh(assignment)
         except IntegrityError as e:
             # 複合ユニーク制約違反（uq_list_item_worker）の場合
-            if "uq_list_item_worker" in str(e.orig):
+            # データベースエンジンによるエラーメッセージの違いに対応
+            error_msg = str(e.orig).lower()
+            if "uq_list_item_worker" in error_msg or "unique constraint" in error_msg:
                 raise DuplicateAssignmentError(list_item_id, worker_id)
+            # 予期しないIntegrityErrorは再送出（ログ出力推奨）
             raise
 
         return self._to_entity(assignment)
@@ -112,6 +120,7 @@ class ListItemAssignmentRepository(IListItemAssignmentRepository):
             .where(
                 ListItemAssignment.id == assignment_id,
                 List.organization_id == requesting_organization_id,
+                ListItem.deleted_at.is_(None),  # 論理削除されたリスト項目を除外（一貫性のため）
             )
         )
         result = await self._session.execute(stmt)

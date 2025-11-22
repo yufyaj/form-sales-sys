@@ -21,8 +21,8 @@ class ListItemAssignmentEntity:
     id: int
     list_item_id: int  # FK to list_items.id
     worker_id: int  # FK to workers.id
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: datetime  # データベースから取得時は必ず存在（NOT NULL制約）
+    updated_at: datetime  # データベースから取得時は必ず存在（NOT NULL制約）
 
     def is_assigned_to_worker(self, worker_id: int) -> bool:
         """指定されたワーカーに割り当てられているかを判定"""
