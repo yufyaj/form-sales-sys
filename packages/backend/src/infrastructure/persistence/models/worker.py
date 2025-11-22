@@ -141,6 +141,10 @@ class Worker(Base, TimestampMixin, SoftDeleteMixin):
         "ListItemAssignment",
         back_populates="worker"
     )
+    work_records: Mapped[list["WorkRecord"]] = relationship(
+        "WorkRecord",
+        back_populates="worker"
+    )
 
     def __repr__(self) -> str:
         return f"<Worker(id={self.id}, user_id={self.user_id}, status={self.status})>"

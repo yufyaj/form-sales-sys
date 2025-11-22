@@ -55,6 +55,11 @@ class ListItemAssignment(Base, TimestampMixin):
         back_populates="list_item_assignments"
     )
 
+    work_records: Mapped[list["WorkRecord"]] = relationship(
+        "WorkRecord",
+        back_populates="assignment"
+    )
+
     # テーブル制約
     # 重複割り当て防止: 同じリスト項目に同じワーカーを複数回割り当てできない
     __table_args__ = (

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domain.entities.list_entity import ListStatus
 from src.domain.exceptions import WorkRecordNotFoundError
 from src.infrastructure.persistence.models import Organization, User
 from src.infrastructure.persistence.models.list import List
@@ -66,7 +67,7 @@ async def test_list(
     list_obj = List(
         organization_id=sales_company_organization.id,
         name="テストリスト",
-        status="pending",
+        status=ListStatus.DRAFT,
     )
     db_session.add(list_obj)
     await db_session.flush()
@@ -78,8 +79,7 @@ async def test_list_item(db_session: AsyncSession, test_list: List) -> ListItem:
     """テスト用リストアイテムを作成"""
     list_item = ListItem(
         list_id=test_list.id,
-        company_name="株式会社テスト",
-        url="https://example.com",
+        title="株式会社テスト",
     )
     db_session.add(list_item)
     await db_session.flush()
