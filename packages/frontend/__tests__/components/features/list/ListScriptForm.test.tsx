@@ -99,10 +99,12 @@ describe('ListScriptForm', () => {
 
       render(<ListScriptForm listId={listId} />)
 
-      const titleInput = screen.getByLabelText('件名')
-      // 256文字の入力
+      const titleInput = screen.getByLabelText('件名') as HTMLInputElement
+      // 256文字の入力（maxlength属性を一時的に削除）
       const longTitle = 'あ'.repeat(256)
-      await user.type(titleInput, longTitle)
+      titleInput.removeAttribute('maxlength')
+      await user.click(titleInput)
+      await user.paste(longTitle)
       await user.tab() // onBlur トリガー
 
       await waitFor(() => {
@@ -117,10 +119,12 @@ describe('ListScriptForm', () => {
 
       render(<ListScriptForm listId={listId} />)
 
-      const contentInput = screen.getByLabelText('本文')
-      // 10001文字の入力
+      const contentInput = screen.getByLabelText('本文') as HTMLTextAreaElement
+      // 10001文字の入力（maxlength属性を一時的に削除）
       const longContent = 'あ'.repeat(10001)
-      await user.type(contentInput, longContent)
+      contentInput.removeAttribute('maxlength')
+      await user.click(contentInput)
+      await user.paste(longContent)
       await user.tab() // onBlur トリガー
 
       await waitFor(() => {
@@ -181,11 +185,13 @@ describe('ListScriptForm', () => {
         />
       )
 
-      const titleInput = screen.getByLabelText('件名')
-      await user.type(titleInput, 'テスト件名')
+      const titleInput = screen.getByLabelText('件名') as HTMLInputElement
+      await user.click(titleInput)
+      await user.paste('テスト件名')
 
-      const contentInput = screen.getByLabelText('本文')
-      await user.type(contentInput, 'テスト本文{Enter}改行も含む')
+      const contentInput = screen.getByLabelText('本文') as HTMLTextAreaElement
+      await user.click(contentInput)
+      await user.paste('テスト本文\n改行も含む')
 
       const submitButton = screen.getByRole('button', {
         name: /スクリプトを登録/i,
