@@ -94,3 +94,37 @@ export function sanitizeEmail(email: string): string {
   // メールアドレスの形式を再検証し、危険な文字を除去
   return email.replace(/[<>'"]/g, '')
 }
+
+/**
+ * 時刻フォーマットのバリデーション
+ * HH:MM形式（00:00〜23:59）の妥当性を検証
+ *
+ * @param time - 検証する時刻文字列
+ * @returns 正しいフォーマットの場合true
+ */
+export function validateTimeFormat(time: string): boolean {
+  if (!time) return false
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/
+  return timeRegex.test(time)
+}
+
+/**
+ * 日付範囲の妥当性検証
+ * 開始日が終了日より前であることを確認
+ *
+ * @param startDate - 開始日（YYYY-MM-DD形式）
+ * @param endDate - 終了日（YYYY-MM-DD形式）
+ * @returns 妥当な範囲の場合true
+ */
+export function validateDateRange(startDate: string, endDate: string): boolean {
+  if (!startDate || !endDate) return false
+
+  // ISO 8601形式（YYYY-MM-DD）の基本的な検証
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+    return false
+  }
+
+  // 開始日 <= 終了日の確認
+  return startDate <= endDate
+}
