@@ -24,6 +24,10 @@ export interface ListTableProps {
    */
   onCreateClick?: () => void
   /**
+   * CSVインポートボタンクリック時のコールバック
+   */
+  onImportClick?: () => void
+  /**
    * 削除ボタンクリック時のコールバック
    */
   onDeleteClick?: (listId: number) => Promise<void>
@@ -37,6 +41,7 @@ export default function ListTable({
   lists,
   isLoading = false,
   onCreateClick,
+  onImportClick,
   onDeleteClick,
 }: ListTableProps) {
   const router = useRouter()
@@ -161,9 +166,16 @@ export default function ListTable({
             全{lists.length}件のリスト
           </p>
         </div>
-        {onCreateClick && (
-          <Button onClick={onCreateClick}>新規リスト作成</Button>
-        )}
+        <div className="flex gap-3">
+          {onImportClick && (
+            <Button variant="outline" onClick={onImportClick}>
+              CSVインポート
+            </Button>
+          )}
+          {onCreateClick && (
+            <Button onClick={onCreateClick}>新規リスト作成</Button>
+          )}
+        </div>
       </div>
 
       {/* テーブル */}
