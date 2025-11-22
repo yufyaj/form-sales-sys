@@ -320,6 +320,26 @@ class ListScriptNotFoundError(ResourceNotFoundException):
 
 
 # ========================================
+# Phase5: ワーカー質問例外
+# ========================================
+
+
+class WorkerQuestionNotFoundError(DomainException):
+    """ワーカー質問が見つからない場合の例外"""
+
+    def __init__(self, question_id: int | None = None) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Worker question not found")
+
+
+class WorkerQuestionCannotBeAnsweredError(BusinessRuleViolationException):
+    """質問が回答不可能な状態の場合の例外"""
+
+    def __init__(self, question_id: int, reason: str = "Question is already answered or closed") -> None:
+        super().__init__(f"Question {question_id} cannot be answered: {reason}")
+
+
+# ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
 
