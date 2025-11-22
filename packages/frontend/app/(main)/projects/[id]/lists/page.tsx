@@ -60,6 +60,13 @@ export default function ListsPage({ params }: ListsPageProps) {
   }
 
   /**
+   * CSVインポートボタンクリック時の処理
+   */
+  const handleImportClick = () => {
+    router.push(`/projects/${projectId}/lists/import`)
+  }
+
+  /**
    * 削除ボタンクリック時の処理
    */
   const handleDeleteClick = async (listId: number) => {
@@ -110,6 +117,7 @@ export default function ListsPage({ params }: ListsPageProps) {
         lists={lists}
         isLoading={isLoading}
         onCreateClick={handleCreateClick}
+        onImportClick={handleImportClick}
         onDeleteClick={handleDeleteClick}
       />
     </div>
