@@ -14,6 +14,7 @@ from src.application.schemas.list import (
 from src.application.use_cases.list_use_cases import ListUseCases
 from src.domain.entities.list_entity import ListEntity, ListStatus
 from src.domain.exceptions import (
+    InsufficientPermissionsError,
     ListCannotBeEditedError,
     ListInvalidStatusTransitionError,
     ListNotFoundError,
@@ -86,7 +87,7 @@ class TestListUseCases:
         )
 
         # Act & Assert
-        with pytest.raises(ValueError, match="No permission"):
+        with pytest.raises(InsufficientPermissionsError):
             await list_use_cases.create_list(
                 requesting_organization_id=999,
                 request=request,
@@ -159,6 +160,7 @@ class TestListUseCases:
             ),
         ]
 
+        mock_list_repository.count_by_organization.return_value = 2
         mock_list_repository.list_by_organization.return_value = expected_entities
 
         # Act
@@ -172,6 +174,10 @@ class TestListUseCases:
         # Assert
         assert lists == expected_entities
         assert total == 2
+        mock_list_repository.count_by_organization.assert_called_once_with(
+            organization_id=10,
+            include_deleted=False,
+        )
         mock_list_repository.list_by_organization.assert_called_once_with(
             organization_id=10,
             skip=0,
@@ -235,7 +241,7 @@ class TestListUseCases:
     ) -> None:
         """Validate organization ownership when listing"""
         # Arrange & Act & Assert
-        with pytest.raises(ValueError, match="No permission"):
+        with pytest.raises(InsufficientPermissionsError):
             await list_use_cases.list_lists_by_organization(
                 organization_id=10,
                 requesting_organization_id=999,
@@ -489,10 +495,10 @@ class TestListUseCases:
         call_kwargs = mock_list_repository.duplicate.call_args.kwargs
         generated_name = call_kwargs["new_name"]
         assert generated_name.startswith("元のリストのコピー_")
-        # タイムスタンプ形式（YYYYMMDD_HHMMSS）を確認
+        # タイムスタンプ形式（YYYYMMDD_HHMMSS_FFFFFF）を確認
         import re
 
-        assert re.match(r"元のリストのコピー_\d{8}_\d{6}", generated_name)
+        assert re.match(r"元のリストのコピー_\d{8}_\d{6}_\d{6}", generated_name)
 
     # ========================================
     # 検収管理テスト

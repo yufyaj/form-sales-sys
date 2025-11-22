@@ -3,11 +3,15 @@ List management use cases
 
 Executes CRUD operations and business logic for lists
 """
+import logging
 
 from src.application.schemas.list import (
     ListCreateRequest,
     ListUpdateRequest,
 )
+from src.application.services.authorization_service import AuthorizationService
+
+logger = logging.getLogger(__name__)
 from src.domain.entities.list_entity import ListEntity, ListStatus
 from src.domain.exceptions import (
     ListCannotBeEditedError,
@@ -23,12 +27,15 @@ class ListUseCases:
     def __init__(
         self,
         list_repository: IListRepository,
+        authorization_service: AuthorizationService | None = None,
     ) -> None:
         """
         Args:
             list_repository: List repository
+            authorization_service: Authorization service (optional, will create if not provided)
         """
         self._list_repo = list_repository
+        self._auth_service = authorization_service or AuthorizationService()
 
     async def create_list(
         self,
@@ -49,14 +56,25 @@ class ListUseCases:
             ValueError: If organization ID does not match (no permission)
         """
         # Security: Validate organization ownership
-        if request.organization_id != requesting_organization_id:
-            raise ValueError("No permission for the specified organization")
+        self._auth_service.check_organization_access(
+            resource_organization_id=request.organization_id,
+            requesting_organization_id=requesting_organization_id,
+        )
 
         # Create list
         list_entity = await self._list_repo.create(
             organization_id=request.organization_id,
             name=request.name,
             description=request.description,
+        )
+
+        logger.info(
+            "List created",
+            extra={
+                "list_id": list_entity.id,
+                "organization_id": requesting_organization_id,
+                "action": "create_list",
+            },
         )
 
         return list_entity
@@ -111,12 +129,20 @@ class ListUseCases:
             ValueError: If organization ID does not match (no permission)
         """
         # Security: Validate organization ownership
-        if organization_id != requesting_organization_id:
-            raise ValueError("No permission for the specified organization")
+        self._auth_service.check_organization_access(
+            resource_organization_id=organization_id,
+            requesting_organization_id=requesting_organization_id,
+        )
 
         # Limit page size
         page_size = min(page_size, 100)
         skip = (page - 1) * page_size
+
+        # Get total count (for pagination)
+        total = await self._list_repo.count_by_organization(
+            organization_id=organization_id,
+            include_deleted=False,
+        )
 
         # Get list of lists
         lists = await self._list_repo.list_by_organization(
@@ -125,10 +151,6 @@ class ListUseCases:
             limit=page_size,
             include_deleted=False,
         )
-
-        # Return count of retrieved lists (simple implementation)
-        # For more accurate total count, add count_by_organization method to repository
-        total = len(lists)
 
         return lists, total
 
@@ -211,6 +233,15 @@ class ListUseCases:
             requesting_organization_id=requesting_organization_id,
         )
 
+        logger.info(
+            "List deleted",
+            extra={
+                "list_id": list_id,
+                "organization_id": requesting_organization_id,
+                "action": "delete_list",
+            },
+        )
+
     async def duplicate_list(
         self,
         list_id: int,
@@ -240,11 +271,11 @@ class ListUseCases:
             raise ListNotFoundError(list_id)
 
         # 新しい名前が指定されていない場合はデフォルト名を生成
-        # タイムスタンプを付与して重複を防ぐ
+        # マイクロ秒まで含めたタイムスタンプを付与して重複を防ぐ
         if new_name is None:
             from datetime import datetime
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             new_name = f"{source_list.name}のコピー_{timestamp}"
 
         # リストを複製
@@ -298,6 +329,17 @@ class ListUseCases:
             requesting_organization_id=requesting_organization_id,
         )
 
+        logger.info(
+            "List submitted",
+            extra={
+                "list_id": list_id,
+                "organization_id": requesting_organization_id,
+                "previous_status": list_entity.status.value,
+                "new_status": ListStatus.SUBMITTED.value,
+                "action": "submit_list",
+            },
+        )
+
         return updated_list
 
     async def accept_list(
@@ -342,6 +384,17 @@ class ListUseCases:
             requesting_organization_id=requesting_organization_id,
         )
 
+        logger.info(
+            "List accepted",
+            extra={
+                "list_id": list_id,
+                "organization_id": requesting_organization_id,
+                "previous_status": list_entity.status.value,
+                "new_status": ListStatus.ACCEPTED.value,
+                "action": "accept_list",
+            },
+        )
+
         return updated_list
 
     async def reject_list(
@@ -384,6 +437,17 @@ class ListUseCases:
             list_id=list_id,
             status=ListStatus.REJECTED,
             requesting_organization_id=requesting_organization_id,
+        )
+
+        logger.info(
+            "List rejected",
+            extra={
+                "list_id": list_id,
+                "organization_id": requesting_organization_id,
+                "previous_status": list_entity.status.value,
+                "new_status": ListStatus.REJECTED.value,
+                "action": "reject_list",
+            },
         )
 
         return updated_list

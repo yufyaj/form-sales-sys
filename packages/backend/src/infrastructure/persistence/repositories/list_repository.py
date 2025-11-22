@@ -102,6 +102,27 @@ class ListRepository(IListRepository):
 
         return [self._to_entity(lst) for lst in lists]
 
+    async def count_by_organization(
+        self,
+        organization_id: int,
+        include_deleted: bool = False,
+    ) -> int:
+        """組織に属するリストの総件数を取得"""
+        from sqlalchemy import func
+
+        conditions = [
+            List.organization_id == organization_id,
+        ]
+        if not include_deleted:
+            conditions.append(List.deleted_at.is_(None))
+
+        stmt = select(func.count(List.id)).where(and_(*conditions))
+
+        result = await self._session.execute(stmt)
+        count = result.scalar_one()
+
+        return count
+
     async def update(
         self,
         list_entity: ListEntity,
