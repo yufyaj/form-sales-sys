@@ -320,6 +320,26 @@ class ListScriptNotFoundError(ResourceNotFoundException):
 
 
 # ========================================
+# Phase5: 作業記録例外
+# ========================================
+
+
+class WorkRecordNotFoundError(ResourceNotFoundException):
+    """作業記録が見つからない場合の例外"""
+
+    def __init__(self, record_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("Work record not found", {"record_id": record_id})
+
+
+class CannotSendReasonNotFoundError(ResourceNotFoundException):
+    """送信不可理由が見つからない場合の例外"""
+
+    def __init__(self, reason_id: int) -> None:
+        super().__init__(f"Cannot send reason with id {reason_id} not found")
+
+
+# ========================================
 # ユーザー管理APIとの互換性のためのエイリアス
 # ========================================
 
