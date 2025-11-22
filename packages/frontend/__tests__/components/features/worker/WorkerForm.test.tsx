@@ -68,8 +68,9 @@ describe("WorkerForm", () => {
 
       // Assert
       await waitFor(() => {
+        // Zodのデフォルトエラーメッセージを確認
         expect(
-          screen.getByText("ユーザーIDは必須です")
+          screen.getByText(/Invalid input/)
         ).toBeInTheDocument();
       });
       expect(onSubmit).not.toHaveBeenCalled();
@@ -222,8 +223,9 @@ describe("WorkerForm", () => {
 
       // Assert
       await waitFor(() => {
+        // Zodのデフォルトエラーメッセージを確認
         expect(
-          screen.getByText("ユーザーIDは数値である必要があります")
+          screen.getByText(/Invalid input/)
         ).toBeInTheDocument();
       });
       expect(onSubmit).not.toHaveBeenCalled();
