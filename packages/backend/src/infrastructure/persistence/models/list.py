@@ -53,6 +53,11 @@ class List(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="list",
         cascade="all, delete-orphan",
     )
+    ng_domains: Mapped[list["NgListDomain"]] = relationship(
+        "NgListDomain",
+        back_populates="list",
+        cascade="all, delete-orphan",
+    )
     no_send_settings: Mapped[list["NoSendSetting"]] = relationship(
         "NoSendSetting",
         back_populates="list",

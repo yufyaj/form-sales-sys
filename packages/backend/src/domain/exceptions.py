@@ -229,6 +229,25 @@ class ListItemCustomValueNotFoundError(DomainException):
         super().__init__(f"List item custom value with id {list_item_custom_value_id} not found")
 
 
+class NgListDomainNotFoundError(DomainException):
+    """NGリストドメインが見つからない場合の例外"""
+
+    def __init__(self, ng_domain_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用にはIDを保持するが、メッセージには含めない
+        super().__init__("NG list domain not found", {"ng_domain_id": ng_domain_id})
+
+
+class DuplicateNgDomainError(DomainException):
+    """NGドメインが既に登録されている場合の例外"""
+
+    def __init__(self, domain_pattern: str, list_id: int) -> None:
+        # セキュリティ: list_idを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用には情報を保持するが、メッセージには含めない
+        super().__init__(
+            "このドメインパターンは既に登録されています",
+            {"domain_pattern": domain_pattern, "list_id": list_id},
+        )
 class NoSendSettingNotFoundError(ResourceNotFoundException):
     """送信禁止設定が見つからない場合の例外"""
 

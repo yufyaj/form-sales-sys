@@ -11,6 +11,7 @@ from .custom_column_setting import CustomColumnSetting
 from .list import List
 from .list_item import ListItem
 from .list_item_custom_value import ListItemCustomValue
+from .ng_list_domain import NgListDomain
 from .no_send_setting import NoSendSetting
 from .organization import Organization, OrganizationType
 from .project import Project, ProjectPriority, ProjectStatus
@@ -43,5 +44,6 @@ __all__ = [
     "CustomColumnSetting",
     "ListItem",
     "ListItemCustomValue",
+    "NgListDomain",
     "NoSendSetting",
 ]
