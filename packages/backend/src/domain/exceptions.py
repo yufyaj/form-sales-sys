@@ -209,7 +209,7 @@ class ProjectCannotBeEditedError(BusinessRuleViolationException):
 # ========================================
 
 
-class ListNotFoundError(DomainException):
+class ListNotFoundError(ResourceNotFoundException):
     """リストが見つからない場合の例外"""
 
     def __init__(self, list_id: int) -> None:
@@ -309,6 +309,14 @@ class DuplicateAssignmentError(DomainException):
             "このワーカーは既にこのリスト項目に割り当てられています",
             {"list_item_id": list_item_id, "worker_id": worker_id},
         )
+
+
+class ListScriptNotFoundError(ResourceNotFoundException):
+    """リストスクリプトが見つからない場合の例外"""
+
+    def __init__(self, script_id: int) -> None:
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        super().__init__("List script not found", {"script_id": script_id})
 
 
 # ========================================

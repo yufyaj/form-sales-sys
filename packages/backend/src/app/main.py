@@ -6,12 +6,16 @@ FastAPIアプリケーションのエントリーポイント
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.app.api import auth
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
 from src.app.api.csv_import import router as csv_import_router
 from src.app.api.list_item_assignments import router as list_item_assignments_router
+from src.app.api.list_scripts import router as list_scripts_router
 from src.app.api.lists import router as lists_router
 from src.app.api.ng_list_domains import router as ng_list_domains_router
 from src.app.api.no_send_settings import router as no_send_settings_router
@@ -25,6 +29,13 @@ from src.domain.exceptions import DomainException
 
 settings = get_settings()
 
+# レート制限の初期化
+# IPアドレスベースでリクエスト数を制限（DoS攻撃対策）
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["100/minute", "1000/hour"],  # デフォルト: 1分あたり100回、1時間あたり1000回
+)
+
 # FastAPIアプリケーションの初期化
 app = FastAPI(
     title="フォーム営業支援システム API",
@@ -33,6 +44,10 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,  # 本番環境ではSwagger UIを無効化
     redoc_url="/redoc" if settings.DEBUG else None,  # 本番環境ではReDocを無効化
 )
+
+# レート制限をアプリケーションに登録
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS設定（セキュリティ強化版）
 # 本番環境では適切なオリジンのみを許可すること
@@ -112,6 +127,9 @@ app.include_router(
 )  # 顧客担当者管理は /api/v1/client-contacts
 app.include_router(projects_router, prefix="/api/v1")  # プロジェクト管理は /api/v1/projects
 app.include_router(lists_router, prefix="/api/v1")  # リスト管理は /api/v1/lists
+app.include_router(
+    list_scripts_router, prefix="/api/v1"
+)  # リストスクリプト管理は /api/v1/list-scripts
 app.include_router(
     ng_list_domains_router, prefix="/api/v1"
 )  # NGリスト管理は /api/v1/ng-list-domains
