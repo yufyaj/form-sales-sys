@@ -42,10 +42,11 @@ jest.mock('framer-motion', () => ({
     {},
     {
       get: (_, prop) => {
-        return jest.fn(({ children, whileTap, transition, ...props }) => {
-          const React = require('react')
-          // whileTapとtransitionは除外してDOM要素を作成
-          return React.createElement(prop, props, children)
+        // forwardRefでラップして、refを正しく処理
+        const React = require('react')
+        return React.forwardRef(({ children, whileTap, transition, ...props }, ref) => {
+          // whileTapとtransitionは除外して、残りのpropsを全て渡す
+          return React.createElement(prop, { ref, ...props }, children)
         })
       },
     }

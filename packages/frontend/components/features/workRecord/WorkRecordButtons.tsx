@@ -45,13 +45,26 @@ export default function WorkRecordButtons({
 
   // 送信不可理由一覧を取得
   useEffect(() => {
+    let isMounted = true
+
     async function fetchReasons() {
-      const result = await getCannotSendReasons()
-      if (result.success && result.data) {
-        setCannotSendReasons(result.data.filter((r) => r.is_active))
+      try {
+        const result = await getCannotSendReasons()
+        // コンポーネントがまだマウントされている場合のみ状態を更新
+        if (isMounted && result.success && result.data) {
+          setCannotSendReasons(result.data.filter((r) => r.is_active))
+        }
+      } catch (error) {
+        console.error('送信不可理由取得エラー:', error)
       }
     }
+
     fetchReasons()
+
+    // クリーンアップ関数でマウント状態を更新
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // 送信済みボタンクリック

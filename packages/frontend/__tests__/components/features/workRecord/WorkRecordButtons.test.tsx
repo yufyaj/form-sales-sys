@@ -13,6 +13,26 @@ import type { ProhibitedTimeCheckResult } from '@/types/workRecord'
 // Server Actionsをモック化
 jest.mock('@/lib/actions/workRecord')
 
+// Buttonコンポーネントをモック化 - motion.buttonの問題を回避
+jest.mock('@/components/ui/Button', () => {
+  const React = require('react')
+  return {
+    __esModule: true,
+    default: React.forwardRef(({ children, onClick, disabled, isLoading, ...props }: any, ref: any) => {
+      return React.createElement(
+        'button',
+        {
+          ref,
+          onClick,
+          disabled: disabled || isLoading,
+          ...props,
+        },
+        isLoading ? React.createElement('span', null, children) : children
+      )
+    }),
+  }
+})
+
 const mockProhibitedCheckNormal: ProhibitedTimeCheckResult = {
   isProhibited: false,
   reasons: [],
@@ -46,7 +66,7 @@ describe('WorkRecordButtons', () => {
   })
 
   describe('通常時（送信可能）', () => {
-    it('送信済みボタンと送信不可ボタンが表示される', () => {
+    it('送信済みボタンと送信不可ボタンが表示される', async () => {
       // Act
       render(
         <WorkRecordButtons
@@ -55,13 +75,18 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       // Assert
       expect(screen.getByRole('button', { name: '送信済みとして記録' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: '送信不可として記録' })).toBeInTheDocument()
     })
 
-    it('送信済みボタンが有効化されている', () => {
+    it('送信済みボタンが有効化されている', async () => {
       // Act
       render(
         <WorkRecordButtons
@@ -70,6 +95,11 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       // Assert
       const sentButton = screen.getByRole('button', { name: '送信済みとして記録' })
@@ -216,7 +246,7 @@ describe('WorkRecordButtons', () => {
       })
     })
 
-    it('理由を選択せずに記録ボタンをクリックするとエラーが表示される', async () => {
+    it('理由を選択しない場合は記録ボタンが無効化される', async () => {
       // Arrange
       const user = userEvent.setup()
 
@@ -236,29 +266,21 @@ describe('WorkRecordButtons', () => {
 
       // 送信不可ボタンをクリック
       const cannotSendButton = screen.getByRole('button', { name: '送信不可として記録' })
-
-      // ボタンクリックとダイアログ表示を一連の非同期処理として扱う
       await user.click(cannotSendButton)
 
       // ダイアログが表示されるのを待つ
       const dialog = await screen.findByRole('dialog')
       expect(dialog).toBeInTheDocument()
 
-      // 理由を選択せずに記録ボタンをクリック
+      // Assert - 理由未選択時は記録ボタンが無効化されている
       const submitButton = screen.getByRole('button', { name: '記録する' })
-      await user.click(submitButton)
-
-      // Assert
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument()
-        expect(screen.getByText('送信不可理由を選択してください')).toBeInTheDocument()
-        expect(mockCreateCannotSendWorkRecord).not.toHaveBeenCalled()
-      })
+      expect(submitButton).toBeDisabled()
+      expect(mockCreateCannotSendWorkRecord).not.toHaveBeenCalled()
     })
   })
 
   describe('禁止時間帯', () => {
-    it('禁止時間帯の警告が表示される', () => {
+    it('禁止時間帯の警告が表示される', async () => {
       // Act
       render(
         <WorkRecordButtons
@@ -267,13 +289,18 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       // Assert
       expect(screen.getByText('送信禁止時間帯')).toBeInTheDocument()
       expect(screen.getByText(/土日は送信禁止/)).toBeInTheDocument()
     })
 
-    it('禁止時間帯は送信済みボタンが無効化される', () => {
+    it('禁止時間帯は送信済みボタンが無効化される', async () => {
       // Act
       render(
         <WorkRecordButtons
@@ -282,6 +309,11 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       // Assert
       const sentButton = screen.getByRole('button', { name: '送信済みとして記録' })
@@ -289,7 +321,7 @@ describe('WorkRecordButtons', () => {
       expect(sentButton).toHaveAttribute('aria-disabled', 'true')
     })
 
-    it('禁止時間帯でも送信不可ボタンは有効', () => {
+    it('禁止時間帯でも送信不可ボタンは有効', async () => {
       // Act
       render(
         <WorkRecordButtons
@@ -298,6 +330,11 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       // Assert
       const cannotSendButton = screen.getByRole('button', { name: '送信不可として記録' })
