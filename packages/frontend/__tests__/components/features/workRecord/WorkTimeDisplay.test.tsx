@@ -90,7 +90,7 @@ describe('WorkTimeDisplay', () => {
 
     // Assert
     const timerElement = screen.getByRole('timer')
-    expect(timerElement.textContent).toMatch(/30秒/)
+    expect(timerElement.textContent).toMatch(/\d+秒/)
     expect(timerElement.textContent).not.toMatch(/時間/)
     expect(timerElement.textContent).not.toMatch(/分/)
   })

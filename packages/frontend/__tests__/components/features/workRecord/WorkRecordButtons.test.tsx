@@ -153,14 +153,18 @@ describe('WorkRecordButtons', () => {
         />
       )
 
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
+
       const cannotSendButton = screen.getByRole('button', { name: '送信不可として記録' })
       await user.click(cannotSendButton)
 
-      // Assert
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-        expect(screen.getByText('送信不可理由の選択')).toBeInTheDocument()
-      })
+      // Assert - ダイアログが表示されるのを待つ
+      const dialog = await screen.findByRole('dialog')
+      expect(dialog).toBeInTheDocument()
+      expect(screen.getByText('送信不可理由の選択')).toBeInTheDocument()
     })
 
     it('理由を選択して記録ボタンをクリックすると作業記録が作成される', async () => {
@@ -179,14 +183,17 @@ describe('WorkRecordButtons', () => {
         />
       )
 
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
+
       // 送信不可ボタンをクリック
       const cannotSendButton = screen.getByRole('button', { name: '送信不可として記録' })
       await user.click(cannotSendButton)
 
-      // 理由を選択
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
+      // ダイアログが表示されるのを待つ
+      await screen.findByRole('dialog')
 
       const reasonSelect = screen.getByLabelText('理由を選択してください')
       await user.selectOptions(reasonSelect, '1')
@@ -222,13 +229,20 @@ describe('WorkRecordButtons', () => {
         />
       )
 
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
+
       // 送信不可ボタンをクリック
       const cannotSendButton = screen.getByRole('button', { name: '送信不可として記録' })
+
+      // ボタンクリックとダイアログ表示を一連の非同期処理として扱う
       await user.click(cannotSendButton)
 
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
+      // ダイアログが表示されるのを待つ
+      const dialog = await screen.findByRole('dialog')
+      expect(dialog).toBeInTheDocument()
 
       // 理由を選択せずに記録ボタンをクリック
       const submitButton = screen.getByRole('button', { name: '記録する' })
@@ -308,6 +322,11 @@ describe('WorkRecordButtons', () => {
           startedAt="2025-11-23T10:00:00Z"
         />
       )
+
+      // 非同期処理の完了を待つ
+      await waitFor(() => {
+        expect(mockGetCannotSendReasons).toHaveBeenCalled()
+      })
 
       const sentButton = screen.getByRole('button', { name: '送信済みとして記録' })
       await user.click(sentButton)
