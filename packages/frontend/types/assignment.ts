@@ -43,3 +43,31 @@ export interface AssignmentListResponse {
   page: number
   pageSize: number
 }
+
+/**
+ * リスト項目（企業情報）
+ */
+export interface ListItem {
+  id: number
+  listId: number
+  companyName: string
+  companyUrl?: string
+  contactEmail?: string
+  contactName?: string
+  notes?: string
+  status: 'pending' | 'completed' | 'failed'
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * 割り当て詳細（企業情報とスクリプト付き）
+ */
+export interface AssignmentDetail extends Assignment {
+  listItems: ListItem[]
+  script?: {
+    title: string
+    content: string
+  }
+  projectDescription?: string
+}
