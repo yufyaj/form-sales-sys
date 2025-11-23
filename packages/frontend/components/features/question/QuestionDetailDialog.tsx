@@ -162,11 +162,25 @@ export default function QuestionDetailDialog({
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">タグ</h3>
               <div className="flex flex-wrap gap-2">
-                {JSON.parse(question.tags).map((tag: string, index: number) => (
-                  <Badge key={index} variant="default" size="sm">
-                    {tag}
-                  </Badge>
-                ))}
+                {(() => {
+                  try {
+                    const parsedTags = JSON.parse(question.tags)
+                    if (!Array.isArray(parsedTags)) {
+                      console.warn('Tags is not an array:', question.tags)
+                      return null
+                    }
+                    return parsedTags
+                      .filter((tag): tag is string => typeof tag === 'string')
+                      .map((tag, index) => (
+                        <Badge key={index} variant="default" size="sm">
+                          {tag}
+                        </Badge>
+                      ))
+                  } catch (error) {
+                    console.error('Failed to parse tags:', error)
+                    return null
+                  }
+                })()}
               </div>
             </div>
           )}

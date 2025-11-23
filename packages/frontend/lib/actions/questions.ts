@@ -8,6 +8,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { createWorkerQuestionSchema } from '@/lib/validations/question'
 import type {
   CreateWorkerQuestionFormData,
 } from '@/lib/validations/question'
@@ -53,17 +54,26 @@ export async function createQuestionAction(
   formData: CreateWorkerQuestionFormData
 ): Promise<{ success: true; data: WorkerQuestion } | { success: false; error: string }> {
   try {
+    // サーバーサイドでの再バリデーション
+    const validationResult = createWorkerQuestionSchema.safeParse(formData)
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: '入力内容に誤りがあります。もう一度確認してください。'
+      }
+    }
+
     const authToken = await getAuthToken()
 
     if (!authToken) {
-      return { success: false, error: '認証が必要です' }
+      return { success: false, error: 'リクエストの処理中にエラーが発生しました' }
     }
 
     const requestData: CreateWorkerQuestionRequest = {
-      title: formData.title,
-      content: formData.content,
+      title: validationResult.data.title,
+      content: validationResult.data.content,
       clientOrganizationId,
-      priority: formData.priority,
+      priority: validationResult.data.priority,
     }
 
     const response = await fetch(`${API_BASE_URL}/worker-questions`, {
@@ -109,7 +119,7 @@ export async function getQuestionsByClientOrganizationAction(
     const authToken = await getAuthToken()
 
     if (!authToken) {
-      return { success: false, error: '認証が必要です' }
+      return { success: false, error: 'リクエストの処理中にエラーが発生しました' }
     }
 
     const params = new URLSearchParams({
@@ -156,7 +166,7 @@ export async function getQuestionAction(
     const authToken = await getAuthToken()
 
     if (!authToken) {
-      return { success: false, error: '認証が必要です' }
+      return { success: false, error: 'リクエストの処理中にエラーが発生しました' }
     }
 
     const response = await fetch(
