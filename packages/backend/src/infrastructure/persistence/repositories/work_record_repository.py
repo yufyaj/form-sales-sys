@@ -15,9 +15,56 @@ from src.domain.entities.work_record_entity import WorkRecordEntity
 from src.domain.exceptions import WorkRecordNotFoundError
 from src.domain.interfaces.work_record_repository import IWorkRecordRepository
 from src.infrastructure.persistence.models.work_record import WorkRecord, WorkRecordStatus
+from src.infrastructure.persistence.models.worker import Worker
 
 # セキュリティログ用のロガー
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_submission_result_for_logging(result: dict[str, Any] | None) -> dict[str, Any] | None:
+    """
+    ログ記録用に送信結果を無害化（機密情報を除去）
+
+    機密情報の可能性があるフィールドをマスクし、
+    セキュリティログに機密データが記録されないようにします。
+
+    Args:
+        result: 送信結果の辞書
+
+    Returns:
+        サニタイズされた辞書、またはNone
+    """
+    if result is None:
+        return None
+
+    # 機密情報の可能性があるキーのセット
+    sensitive_keys = {
+        "password", "passwd", "pwd",
+        "token", "access_token", "refresh_token", "bearer",
+        "api_key", "apikey", "secret", "private_key",
+        "authorization", "auth",
+        "cookie", "session", "session_id",
+        "credit_card", "card_number", "cvv", "cvc",
+        "ssn", "social_security",
+    }
+
+    sanitized = {}
+    for key, value in result.items():
+        key_lower = key.lower()
+
+        # キー名に機密情報を示す文字列が含まれている場合はマスク
+        if any(sensitive in key_lower for sensitive in sensitive_keys):
+            sanitized[key] = "***REDACTED***"
+        # 長い文字列は省略（バイナリデータやbase64エンコードされたデータ等）
+        elif isinstance(value, str) and len(value) > 200:
+            sanitized[key] = f"{value[:50]}... (truncated, length: {len(value)})"
+        # ネストされた辞書は再帰的にサニタイズ
+        elif isinstance(value, dict):
+            sanitized[key] = _sanitize_submission_result_for_logging(value)
+        else:
+            sanitized[key] = value
+
+    return sanitized
 
 
 class WorkRecordRepository(IWorkRecordRepository):
@@ -74,6 +121,8 @@ class WorkRecordRepository(IWorkRecordRepository):
                 "status": status.value,
                 "duration_minutes": duration_minutes,
                 "cannot_send_reason_id": cannot_send_reason_id,
+                # 機密情報を除外した送信結果をログに記録
+                "form_submission_result": _sanitize_submission_result_for_logging(form_submission_result),
             },
         )
 
@@ -292,6 +341,56 @@ class WorkRecordRepository(IWorkRecordRepository):
                 "assignment_id": record.assignment_id,
             },
         )
+
+    async def find_by_id_with_access_check(
+        self,
+        record_id: int,
+        requesting_worker_id: int,
+        requesting_organization_id: int,
+    ) -> WorkRecordEntity | None:
+        """
+        IDで作業記録を検索（アクセス権限チェック付き）
+
+        マルチテナント環境でのIDOR脆弱性対策。
+        同じ組織のワーカーのみアクセス可能。
+        """
+        stmt = (
+            select(WorkRecord)
+            .join(Worker, WorkRecord.worker_id == Worker.id)
+            .where(
+                WorkRecord.id == record_id,
+                WorkRecord.deleted_at.is_(None),
+                # 同じ組織のワーカーのみアクセス可能
+                Worker.organization_id == requesting_organization_id,
+            )
+        )
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if record is None:
+            # データが存在しないのか権限がないのかを区別しない（セキュリティ）
+            logger.warning(
+                "Work record access denied or not found",
+                extra={
+                    "event_type": "work_record_access_denied",
+                    "record_id": record_id,
+                    "requesting_worker_id": requesting_worker_id,
+                    "requesting_organization_id": requesting_organization_id,
+                },
+            )
+            return None
+
+        logger.info(
+            "Work record accessed successfully with permission check",
+            extra={
+                "event_type": "work_record_accessed",
+                "record_id": record_id,
+                "requesting_worker_id": requesting_worker_id,
+                "requesting_organization_id": requesting_organization_id,
+            },
+        )
+
+        return self._to_entity(record)
 
     def _to_entity(self, record: WorkRecord) -> WorkRecordEntity:
         """

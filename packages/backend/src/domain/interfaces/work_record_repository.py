@@ -199,3 +199,31 @@ class IWorkRecordRepository(ABC):
             WorkRecordNotFoundError: 作業記録が見つからない場合
         """
         pass
+
+    @abstractmethod
+    async def find_by_id_with_access_check(
+        self,
+        record_id: int,
+        requesting_worker_id: int,
+        requesting_organization_id: int,
+    ) -> WorkRecordEntity | None:
+        """
+        IDで作業記録を検索（アクセス権限チェック付き）
+
+        マルチテナント環境でのIDOR（Insecure Direct Object Reference）脆弱性対策として、
+        リクエストしているワーカーが同じ組織に所属している場合のみアクセスを許可します。
+
+        Args:
+            record_id: 作業記録ID
+            requesting_worker_id: リクエストしているワーカーID
+            requesting_organization_id: リクエストしている組織ID
+
+        Returns:
+            WorkRecordEntity | None: アクセス権限がある場合は作業記録エンティティ、
+                                      権限がない場合やデータが存在しない場合はNone
+
+        Note:
+            セキュリティ上、データが存在しないのか権限がないのかを区別せず、
+            両方ともNoneを返します（情報漏洩防止）
+        """
+        pass

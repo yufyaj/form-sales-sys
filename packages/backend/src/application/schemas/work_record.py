@@ -4,12 +4,83 @@
 API境界でのバリデーションとデータ変換を行うDTOスキーマ
 """
 
+import json
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.infrastructure.persistence.models.work_record import WorkRecordStatus
+
+
+# ========================================
+# 送信結果構造化スキーマ（JSONB注入対策）
+# ========================================
+
+
+class FormSubmissionResult(BaseModel):
+    """
+    送信結果の構造化スキーマ
+
+    form_submission_resultフィールドのセキュリティ強化のため、
+    許可されたフィールドのみを受け付ける構造化スキーマを定義します。
+    これにより、JSONB注入攻撃やプロトタイプ汚染を防止します。
+    """
+
+    status_code: int | None = Field(
+        None,
+        ge=100,
+        le=599,
+        description="HTTPステータスコード",
+        examples=[200],
+    )
+    message: str | None = Field(
+        None,
+        max_length=500,
+        description="メッセージ",
+        examples=["送信成功"],
+    )
+    response_time_ms: int | None = Field(
+        None,
+        ge=0,
+        le=60000,
+        description="レスポンスタイム（ミリ秒）",
+        examples=[250],
+    )
+    screenshot_url: str | None = Field(
+        None,
+        max_length=1000,
+        description="スクリーンショットURL",
+        examples=["https://example.com/screenshots/123.png"],
+    )
+    error_message: str | None = Field(
+        None,
+        max_length=1000,
+        description="エラーメッセージ",
+        examples=["フォームが見つかりませんでした"],
+    )
+    retry_count: int | None = Field(
+        None,
+        ge=0,
+        le=10,
+        description="リトライ回数",
+        examples=[0],
+    )
+
+    model_config = ConfigDict(
+        # 追加フィールドを許可しない（厳格なバリデーション）
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "status_code": 200,
+                "message": "送信成功",
+                "response_time_ms": 250,
+                "screenshot_url": "https://example.com/screenshots/123.png",
+                "error_message": None,
+                "retry_count": 0,
+            }
+        },
+    )
 
 
 # ========================================
@@ -45,10 +116,10 @@ class WorkRecordCreateRequest(BaseModel):
         description="作業完了日時",
         examples=["2025-11-22T10:30:00Z"],
     )
-    form_submission_result: dict[str, Any] | None = Field(
+    form_submission_result: FormSubmissionResult | None = Field(
         None,
-        description="送信結果の詳細（JSONフィールド）",
-        examples=[{"status_code": 200, "message": "送信成功"}],
+        description="送信結果の詳細（構造化スキーマ）",
+        examples=[FormSubmissionResult(status_code=200, message="送信成功")],
     )
     cannot_send_reason_id: int | None = Field(
         None,
@@ -68,6 +139,19 @@ class WorkRecordCreateRequest(BaseModel):
         """完了日時が開始日時より後であることを検証"""
         if "started_at" in info.data and v < info.data["started_at"]:
             raise ValueError("completed_at must be after started_at")
+        return v
+
+    @field_validator("form_submission_result")
+    @classmethod
+    def validate_submission_result_size(
+        cls, v: FormSubmissionResult | None
+    ) -> FormSubmissionResult | None:
+        """送信結果のサイズ検証（10KB制限）"""
+        if v is not None:
+            # JSON文字列化してサイズチェック（10KB制限）
+            json_str = json.dumps(v.model_dump())
+            if len(json_str) > 10240:  # 10KB
+                raise ValueError("form_submission_result exceeds maximum size of 10KB")
         return v
 
     @field_validator("cannot_send_reason_id")
@@ -99,10 +183,10 @@ class WorkRecordUpdateRequest(BaseModel):
         description="作業完了日時",
         examples=["2025-11-22T10:30:00Z"],
     )
-    form_submission_result: dict[str, Any] | None = Field(
+    form_submission_result: FormSubmissionResult | None = Field(
         None,
-        description="送信結果の詳細（JSONフィールド）",
-        examples=[{"status_code": 200, "message": "送信成功", "retry_count": 1}],
+        description="送信結果の詳細（構造化スキーマ）",
+        examples=[FormSubmissionResult(status_code=200, message="送信成功", retry_count=1)],
     )
     cannot_send_reason_id: int | None = Field(
         None,
@@ -115,6 +199,19 @@ class WorkRecordUpdateRequest(BaseModel):
         description="メモ・備考",
         examples=["再試行にて送信完了"],
     )
+
+    @field_validator("form_submission_result")
+    @classmethod
+    def validate_submission_result_size(
+        cls, v: FormSubmissionResult | None
+    ) -> FormSubmissionResult | None:
+        """送信結果のサイズ検証（10KB制限）"""
+        if v is not None:
+            # JSON文字列化してサイズチェック（10KB制限）
+            json_str = json.dumps(v.model_dump())
+            if len(json_str) > 10240:  # 10KB
+                raise ValueError("form_submission_result exceeds maximum size of 10KB")
+        return v
 
 
 # ========================================
