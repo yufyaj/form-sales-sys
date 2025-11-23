@@ -141,6 +141,10 @@ class Worker(Base, TimestampMixin, SoftDeleteMixin):
         "ListItemAssignment",
         back_populates="worker"
     )
+    work_records: Mapped[list["WorkRecord"]] = relationship(
+        "WorkRecord",
+        back_populates="worker"
+    )
     questions: Mapped[list["WorkerQuestion"]] = relationship(
         "WorkerQuestion",
         back_populates="worker",

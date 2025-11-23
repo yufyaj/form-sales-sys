@@ -22,6 +22,8 @@ from .sales_company_staff import SalesCompanyStaff
 from .user import User
 from .user_role import RolePermission, UserRole
 from .worker import SkillLevel, Worker, WorkerStatus
+from .cannot_send_reason import CannotSendReason
+from .work_record import WorkRecord, WorkRecordStatus
 from .worker_question import QuestionPriority, QuestionStatus, WorkerQuestion
 
 __all__ = [
@@ -56,6 +58,10 @@ __all__ = [
     "NoSendSetting",
     # Phase4: Worker Assignment
     "ListItemAssignment",
+    # Phase5: Work Records
+    "CannotSendReason",
+    "WorkRecord",
+    "WorkRecordStatus",
     # Phase5: Worker Questions
     "WorkerQuestion",
     "QuestionStatus",
