@@ -62,6 +62,7 @@ async def create_question(
     request: WorkerQuestionCreateRequest,
     use_cases: WorkerQuestionUseCases = Depends(get_worker_question_use_cases),
     current_user: UserEntity = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db),
 ) -> WorkerQuestionResponse:
     """
     新規ワーカー質問を作成
@@ -76,13 +77,19 @@ async def create_question(
         ワーカーのuser_idは認証情報から自動的に取得されます。
         ワーカーとして登録されているユーザーのみが質問を投稿できます。
     """
-    # TODO: current_userからworker_idを取得する実装が必要
-    # 現時点では、ワーカーテーブルからuser_idで検索する必要がある
-    # 仮にworker_idを1として実装（実際にはワーカーリポジトリで検索）
-    worker_id = 1  # TODO: 実装が必要
+    # 認証ユーザーからワーカー情報を取得
+    worker_repo = WorkerRepository(session)
+    worker = await worker_repo.find_by_user_id(
+        current_user.id,
+        current_user.organization_id
+    )
+    if worker is None:
+        # ワーカーとして登録されていないユーザーは質問を投稿できない
+        from src.domain.exceptions import WorkerNotFoundError
+        raise WorkerNotFoundError()
 
     question = await use_cases.create_question(
-        request, worker_id, current_user.organization_id
+        request, worker.id, current_user.organization_id
     )
     return WorkerQuestionResponse.model_validate(question)
 

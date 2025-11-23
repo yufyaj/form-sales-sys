@@ -69,10 +69,10 @@ class WorkerQuestionRepository(IWorkerQuestionRepository):
             extra={
                 "event_type": "worker_question_created",
                 "question_id": question.id,
-                "worker_id": worker_id,
-                "organization_id": organization_id,
+                "organization_id": organization_id,  # 監査ログとして必要
                 "status": status,
                 "priority": priority,
+                # worker_idは機密情報のため、監査要件がない限り出力しない
             },
         )
 
@@ -399,8 +399,8 @@ class WorkerQuestionRepository(IWorkerQuestionRepository):
             extra={
                 "event_type": "worker_question_deleted",
                 "question_id": question_id,
-                "worker_id": question.worker_id,
                 "organization_id": requesting_organization_id,
+                # worker_idは機密情報のため、監査要件がない限り出力しない
             },
         )
 

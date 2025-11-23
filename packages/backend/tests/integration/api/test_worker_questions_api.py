@@ -696,3 +696,156 @@ async def test_create_question_validation_error(
         assert response.status_code == 422
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_add_answer_to_already_answered_question(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    worker_and_org: tuple[Worker, Organization]
+) -> None:
+    """既に回答済みの質問に再度回答しようとすると400エラーを返すことをテスト"""
+    auth_user, org = auth_user_and_org
+    worker, _ = worker_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # 質問を作成
+            create_response = await client.post(
+                "/api/v1/worker-questions",
+                json={
+                    "title": "回答重複テスト",
+                    "content": "一度だけ回答してください",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            created_question = create_response.json()
+
+            # 1回目の回答（成功）
+            first_answer_response = await client.post(
+                f"/api/v1/worker-questions/{created_question['id']}/answer",
+                json={
+                    "answer": "最初の回答",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert first_answer_response.status_code == 200
+
+            # 2回目の回答（失敗）
+            second_answer_response = await client.post(
+                f"/api/v1/worker-questions/{created_question['id']}/answer",
+                json={
+                    "answer": "2回目の回答",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 400 Bad Request を期待（既に回答済み）
+        assert second_answer_response.status_code == 400
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_soft_deleted_question_returns_404(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    worker_and_org: tuple[Worker, Organization]
+) -> None:
+    """論理削除された質問を取得しようとすると404を返すことをテスト"""
+    auth_user, org = auth_user_and_org
+    worker, _ = worker_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # 質問を作成
+            create_response = await client.post(
+                "/api/v1/worker-questions",
+                json={
+                    "title": "削除テスト",
+                    "content": "この質問は削除されます",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            created_question = create_response.json()
+
+            # 質問を削除
+            delete_response = await client.delete(
+                f"/api/v1/worker-questions/{created_question['id']}",
+                headers={"Authorization": "Bearer mock_token"},
+            )
+            assert delete_response.status_code == 204
+
+            # 削除後に取得しようとする
+            get_response = await client.get(
+                f"/api/v1/worker-questions/{created_question['id']}",
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 404 Not Found を期待
+        assert get_response.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_question_with_long_title_validation_error(
+    db_session: AsyncSession,
+    auth_user_and_org: tuple[User, Organization],
+    worker_and_org: tuple[Worker, Organization]
+) -> None:
+    """タイトルが500文字を超える場合に422エラーを返すことをテスト"""
+    auth_user, org = auth_user_and_org
+    worker, _ = worker_and_org
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_active_user():
+        return create_user_entity(auth_user)
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # 501文字のタイトルを作成
+            long_title = "あ" * 501
+
+            response = await client.post(
+                "/api/v1/worker-questions",
+                json={
+                    "title": long_title,
+                    "content": "タイトルが長すぎます",
+                },
+                headers={"Authorization": "Bearer mock_token"},
+            )
+
+        # 422 Unprocessable Entity を期待
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
