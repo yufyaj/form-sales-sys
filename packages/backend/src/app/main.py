@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from src.app.api import auth
+from src.app.api.cannot_send_reasons import router as cannot_send_reasons_router
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
 from src.app.api.csv_import import router as csv_import_router
@@ -138,6 +139,9 @@ app.include_router(csv_import_router, prefix="/api/v1")  # CSVインポートは
 app.include_router(
     no_send_settings_router, prefix="/api/v1"
 )  # 送信禁止設定は /api/v1/no-send-settings
+app.include_router(
+    cannot_send_reasons_router, prefix="/api/v1"
+)  # 送信不可理由管理は /api/v1/cannot-send-reasons
 app.include_router(workers_router, prefix="/api/v1")  # ワーカー管理は /api/v1/workers
 app.include_router(
     list_item_assignments_router, prefix="/api/v1"

@@ -339,6 +339,16 @@ class CannotSendReasonNotFoundError(ResourceNotFoundException):
         super().__init__(f"Cannot send reason with id {reason_id} not found")
 
 
+class DuplicateCannotSendReasonCodeError(DomainException):
+    """送信不可理由コードが既に登録されている場合の例外"""
+
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(
+            f"この理由コード（{reason_code}）は既に登録されています",
+            {"reason_code": reason_code},
+        )
+
+
 # ========================================
 # Phase5: ワーカー質問例外
 # ========================================
