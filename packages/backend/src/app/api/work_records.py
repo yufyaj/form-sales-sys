@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.api.dependencies import get_current_active_user, get_db
+from src.app.api.dependencies import get_current_active_user, get_current_worker_id, get_db
 from src.application.schemas.work_record import (
     WorkRecordCreateRequest,
     WorkRecordListResponse,
@@ -88,6 +88,7 @@ async def create_work_record(
 )
 async def get_work_record(
     record_id: int,
+    worker_id: int = Depends(get_current_worker_id),
     use_cases: WorkRecordUseCases = Depends(get_work_record_use_cases),
     current_user: UserEntity = Depends(get_current_active_user),
 ) -> WorkRecordResponse:
@@ -96,12 +97,9 @@ async def get_work_record(
 
     - **record_id**: 作業記録ID
 
-    IDOR対策として、requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
+    IDOR対策として、get_current_worker_idでログイン中のユーザーのworker_idのみを取得し、
+    requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
     """
-    # TODO: current_user.worker_idを取得する必要があります（現在のUserEntityに含まれていない場合）
-    # 暫定的にcurrent_user.idをworker_idとして使用
-    worker_id = current_user.id  # 実際にはUserからWorkerへの変換が必要
-    
     work_record = await use_cases.get_work_record(
         record_id=record_id,
         requesting_worker_id=worker_id,
@@ -114,10 +112,10 @@ async def get_work_record(
     "",
     response_model=WorkRecordListResponse,
     summary="作業記録一覧取得",
-    description="ワーカーの作業記録一覧を取得します。認証が必要です。",
+    description="ログイン中のワーカーの作業記録一覧を取得します。認証が必要です。",
 )
 async def list_work_records(
-    worker_id: int = Query(..., description="ワーカーID"),
+    worker_id: int = Depends(get_current_worker_id),
     status: WorkRecordStatus | None = Query(None, description="フィルタ用ステータス"),
     start_date: datetime | None = Query(None, description="検索開始日時"),
     end_date: datetime | None = Query(None, description="検索終了日時"),
@@ -127,9 +125,12 @@ async def list_work_records(
     current_user: UserEntity = Depends(get_current_active_user),
 ) -> WorkRecordListResponse:
     """
-    ワーカーの作業記録一覧を取得
+    ログイン中のワーカーの作業記録一覧を取得（IDOR対策）
 
-    - **worker_id**: ワーカーID
+    IDOR脆弱性対策として、クエリパラメータでworker_idを受け取らず、
+    get_current_worker_idでログイン中のユーザーのworker_idのみを使用します。
+    これにより、他のワーカーの作業記録を閲覧することを防止します。
+
     - **status**: フィルタ用ステータス（オプション）
     - **start_date**: 検索開始日時（オプション）
     - **end_date**: 検索終了日時（オプション）
@@ -161,6 +162,7 @@ async def list_work_records(
 async def update_work_record(
     record_id: int,
     request: WorkRecordUpdateRequest,
+    worker_id: int = Depends(get_current_worker_id),
     use_cases: WorkRecordUseCases = Depends(get_work_record_use_cases),
     current_user: UserEntity = Depends(get_current_active_user),
 ) -> WorkRecordResponse:
@@ -170,11 +172,9 @@ async def update_work_record(
     - **record_id**: 作業記録ID
     - **request**: 更新内容（部分更新可能）
 
-    IDOR対策として、requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
+    IDOR対策として、get_current_worker_idでログイン中のユーザーのworker_idのみを取得し、
+    requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
     """
-    # TODO: current_user.worker_idを取得する必要があります（現在のUserEntityに含まれていない場合）
-    worker_id = current_user.id  # 暫定
-
     work_record = await use_cases.update_work_record(
         record_id=record_id,
         request=request,
@@ -192,6 +192,7 @@ async def update_work_record(
 )
 async def delete_work_record(
     record_id: int,
+    worker_id: int = Depends(get_current_worker_id),
     use_cases: WorkRecordUseCases = Depends(get_work_record_use_cases),
     current_user: UserEntity = Depends(get_current_active_user),
 ) -> None:
@@ -200,11 +201,9 @@ async def delete_work_record(
 
     - **record_id**: 作業記録ID
 
-    IDOR対策として、requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
+    IDOR対策として、get_current_worker_idでログイン中のユーザーのworker_idのみを取得し、
+    requesting_worker_idとrequesting_organization_idでアクセス権限をチェックします。
     """
-    # TODO: current_user.worker_idを取得する必要があります（現在のUserEntityに含まれていない場合）
-    worker_id = current_user.id  # 暫定
-
     await use_cases.delete_work_record(
         record_id=record_id,
         requesting_worker_id=worker_id,

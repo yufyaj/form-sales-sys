@@ -26,12 +26,15 @@ class SendControlService:
 
         Args:
             settings: 送信禁止設定のリスト
-            check_datetime: チェック対象の日時（timezone aware）
+            check_datetime: チェック対象の日時（timezone aware必須）
 
         Returns:
             tuple[bool, str | None]: (送信可能か, 送信不可の理由)
             - 送信可能な場合: (True, None)
             - 送信不可な場合: (False, "禁止理由の説明")
+
+        Raises:
+            ValueError: check_datetimeがtimezone awareでない場合
 
         ビジネスルール:
             - 設定が空の場合は常に送信可能
@@ -40,7 +43,19 @@ class SendControlService:
             - 複数の設定に該当する場合、最初の設定の理由を返す
             - 曜日設定: ISO 8601準拠（月曜=1, 日曜=7）
             - 時間帯設定: 日跨ぎ（22:00-6:00）に対応
+
+        セキュリティ上の注意:
+            タイムゾーン情報がない日時を受け取ると、予期しない動作により
+            送信禁止設定をバイパスできる可能性があります。
+            そのため、timezone awareなdatetimeオブジェクトのみを受け付けます。
         """
+        # タイムゾーン情報の検証（セキュリティ対策）
+        if check_datetime.tzinfo is None or check_datetime.tzinfo.utcoffset(check_datetime) is None:
+            raise ValueError(
+                "check_datetime must be timezone aware. "
+                "Use datetime.now(timezone.utc) or datetime.fromisoformat() with timezone info."
+            )
+
         for setting in settings:
             # 無効な設定または論理削除済みの設定はスキップ
             if not setting.is_active():

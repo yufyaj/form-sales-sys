@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.api.dependencies import get_current_active_user, get_db
+from src.app.api.dependencies import get_current_active_user, get_current_worker_id, get_db
 from src.application.schemas.list_item_assignment import ListItemAssignmentResponse
 from src.application.use_cases.worker_assignment_use_cases import WorkerAssignmentUseCases
 from src.domain.entities.user_entity import UserEntity
@@ -39,22 +39,25 @@ async def get_worker_assignment_use_cases(
 
 
 @router.get(
-    "/{worker_id}/assignments",
+    "/me/assignments",
     response_model=list[ListItemAssignmentResponse],
     summary="ワーカー割り当てリスト取得",
-    description="指定されたワーカーに割り当てられたリスト項目の一覧を取得します。認証が必要です。",
+    description="ログイン中のワーカーに割り当てられたリスト項目の一覧を取得します。認証が必要です。",
 )
 async def get_worker_assignments(
-    worker_id: int,
+    worker_id: int = Depends(get_current_worker_id),
     use_cases: WorkerAssignmentUseCases = Depends(get_worker_assignment_use_cases),
     current_user: UserEntity = Depends(get_current_active_user),
 ) -> list[ListItemAssignmentResponse]:
     """
-    ワーカーに割り当てられたリスト項目の一覧を取得
+    ログイン中のワーカーに割り当てられたリスト項目の一覧を取得（IDOR対策）
 
-    - **worker_id**: ワーカーID
+    IDOR脆弱性対策として、パスパラメータでworker_idを受け取らず、
+    get_current_worker_idでログイン中のユーザーのworker_idのみを使用します。
+    これにより、他のワーカーの割り当て情報を閲覧することを防止します。
 
-    IDOR対策として、organization_idでアクセス権限をチェックします。
+    エンドポイントを /workers/me/assignments に変更し、ログイン中のワーカー自身の
+    情報のみを返すように設計しています。
     """
     assignments = await use_cases.get_worker_assignments(
         worker_id=worker_id,
