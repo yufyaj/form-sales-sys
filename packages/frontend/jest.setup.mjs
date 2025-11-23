@@ -2,6 +2,9 @@ import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'util'
 import { ReadableStream } from 'stream/web'
 
+// テスト環境用の環境変数を設定
+process.env.NEXT_PUBLIC_API_BASE_URL = 'http://localhost:8000'
+
 // Node.js環境にWeb API用のポリフィルを追加（Next.js用）
 global.TextEncoder = TextEncoder
 global.TextDecoder = TextDecoder

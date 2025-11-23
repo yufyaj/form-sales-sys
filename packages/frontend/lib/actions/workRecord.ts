@@ -12,6 +12,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { z } from 'zod'
 import type {
   WorkRecord,
   CreateSentWorkRecordRequest,
@@ -20,7 +21,41 @@ import type {
   CannotSendReason,
 } from '@/types/workRecord'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:8000'
+// 環境変数からAPIベースURLを取得（フォールバック値なし - セキュリティ対策）
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+
+if (!API_BASE_URL) {
+  throw new Error(
+    'NEXT_PUBLIC_API_BASE_URL environment variable is not set. ' +
+    'Please set it in your .env.local file for local development or in your deployment environment.'
+  )
+}
+
+/**
+ * 入力バリデーションスキーマ
+ * セキュリティ: クライアントからの入力を検証してバックエンドへの不正リクエストを防止
+ */
+const createSentWorkRecordSchema = z.object({
+  assignment_id: z.number().int().positive('割り当てIDは正の整数である必要があります'),
+  started_at: z.string().datetime('開始時刻はISO 8601形式である必要があります'),
+  completed_at: z.string().datetime('完了時刻はISO 8601形式である必要があります'),
+  notes: z.string().max(1000, 'メモは1000文字以内で入力してください').optional(),
+})
+
+const createCannotSendWorkRecordSchema = z.object({
+  assignment_id: z.number().int().positive('割り当てIDは正の整数である必要があります'),
+  started_at: z.string().datetime('開始時刻はISO 8601形式である必要があります'),
+  completed_at: z.string().datetime('完了時刻はISO 8601形式である必要があります'),
+  cannot_send_reason_id: z.number().int().positive('理由IDは正の整数である必要があります'),
+  notes: z.string().max(1000, 'メモは1000文字以内で入力してください').optional(),
+})
+
+const updateWorkRecordSchema = z.object({
+  notes: z.string().max(1000, 'メモは1000文字以内で入力してください').optional(),
+  status: z.enum(['sent', 'cannot_send'], {
+    errorMap: () => ({ message: 'ステータスはsentまたはcannot_sendである必要があります' }),
+  }).optional(),
+})
 
 /**
  * 認証トークンを取得
@@ -157,6 +192,16 @@ export async function createSentWorkRecord(
   request: CreateSentWorkRecordRequest
 ): Promise<{ success: boolean; data?: WorkRecord; error?: string }> {
   try {
+    // 入力バリデーション
+    const validation = createSentWorkRecordSchema.safeParse(request)
+    if (!validation.success) {
+      const firstError = validation.error.errors[0]
+      return {
+        success: false,
+        error: firstError.message || '入力内容に誤りがあります'
+      }
+    }
+
     const token = await getAuthToken()
     if (!token) {
       return { success: false, error: '認証が必要です' }
@@ -197,6 +242,16 @@ export async function createCannotSendWorkRecord(
   request: CreateCannotSendWorkRecordRequest
 ): Promise<{ success: boolean; data?: WorkRecord; error?: string }> {
   try {
+    // 入力バリデーション
+    const validation = createCannotSendWorkRecordSchema.safeParse(request)
+    if (!validation.success) {
+      const firstError = validation.error.errors[0]
+      return {
+        success: false,
+        error: firstError.message || '入力内容に誤りがあります'
+      }
+    }
+
     const token = await getAuthToken()
     if (!token) {
       return { success: false, error: '認証が必要です' }
@@ -243,6 +298,21 @@ export async function updateWorkRecord(
   request: UpdateWorkRecordRequest
 ): Promise<{ success: boolean; data?: WorkRecord; error?: string }> {
   try {
+    // recordIdのバリデーション
+    if (!Number.isInteger(recordId) || recordId <= 0) {
+      return { success: false, error: '作業記録IDは正の整数である必要があります' }
+    }
+
+    // 入力バリデーション
+    const validation = updateWorkRecordSchema.safeParse(request)
+    if (!validation.success) {
+      const firstError = validation.error.errors[0]
+      return {
+        success: false,
+        error: firstError.message || '入力内容に誤りがあります'
+      }
+    }
+
     const token = await getAuthToken()
     if (!token) {
       return { success: false, error: '認証が必要です' }
@@ -282,6 +352,11 @@ export async function deleteWorkRecord(
   recordId: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // recordIdのバリデーション
+    if (!Number.isInteger(recordId) || recordId <= 0) {
+      return { success: false, error: '作業記録IDは正の整数である必要があります' }
+    }
+
     const token = await getAuthToken()
     if (!token) {
       return { success: false, error: '認証が必要です' }
