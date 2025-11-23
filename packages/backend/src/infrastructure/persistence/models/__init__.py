@@ -24,6 +24,7 @@ from .user_role import RolePermission, UserRole
 from .worker import SkillLevel, Worker, WorkerStatus
 from .cannot_send_reason import CannotSendReason
 from .work_record import WorkRecord, WorkRecordStatus
+from .worker_question import QuestionPriority, QuestionStatus, WorkerQuestion
 
 __all__ = [
     # Base classes
@@ -61,4 +62,8 @@ __all__ = [
     "CannotSendReason",
     "WorkRecord",
     "WorkRecordStatus",
+    # Phase5: Worker Questions
+    "WorkerQuestion",
+    "QuestionStatus",
+    "QuestionPriority",
 ]

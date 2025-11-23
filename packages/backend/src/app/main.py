@@ -22,6 +22,7 @@ from src.app.api.no_send_settings import router as no_send_settings_router
 from src.app.api.projects import router as projects_router
 from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.users import router as users_router
+from src.app.api.worker_questions import router as worker_questions_router
 from src.app.api.workers import router as workers_router
 from src.app.core.config import get_settings
 from src.app.core.exceptions import domain_exception_handler
@@ -141,6 +142,9 @@ app.include_router(workers_router, prefix="/api/v1")  # ワーカー管理は /a
 app.include_router(
     list_item_assignments_router, prefix="/api/v1"
 )  # リスト項目割り当ては /api/v1/lists/{list_id}/assign-workers
+app.include_router(
+    worker_questions_router, prefix="/api/v1"
+)  # ワーカー質問管理は /api/v1/worker-questions
 
 
 @app.get("/health", tags=["health"])
