@@ -17,8 +17,26 @@ export interface ListMetadataFormProps {
 
 /**
  * リストメタデータ編集フォームコンポーネント
- * URLと説明を編集できる
- * セキュリティ: HTTPSのURLのみ許可、XSS対策（制御文字除去）
+ * URLと説明を一括で編集できる
+ *
+ * 【セキュリティ対策】
+ * - HTTPSのURLのみ許可（HTTPは拒否）
+ * - XSS対策: 説明フィールドから制御文字を除去（\x00-\x1F, \x7F）
+ * - 説明は5000文字以内に制限
+ * - Zodバリデーションで型安全性を確保
+ *
+ * 【実装詳細】
+ * - React Hook FormとZodを統合
+ * - mode: 'onBlur'でUXを最適化（入力中はバリデーションしない）
+ * - transformでサニタイゼーション（制御文字除去）を自動実行
+ * - エラーハンドリングで安全なメッセージのみ表示
+ *
+ * 【XSS対策の詳細】
+ * - Zodのtransform機能を使用して、制御文字を除去
+ * - 正規表現 /[\x00-\x1F\x7F]/g で以下を除去:
+ *   - \x00-\x1F: 制御文字（NULL、改行以外の特殊文字など）
+ *   - \x7F: DEL文字
+ * - これにより、潜在的なXSS攻撃ベクトルを防止
  *
  * @example
  * ```tsx
@@ -26,7 +44,9 @@ export interface ListMetadataFormProps {
  *   listId={1}
  *   projectId={1}
  *   defaultValues={{ url: 'https://example.com', description: '説明文' }}
- *   onSubmit={handleSubmit}
+ *   onSubmit={async (data) => {
+ *     await updateListAction(projectId, listId, data)
+ *   }}
  * />
  * ```
  */

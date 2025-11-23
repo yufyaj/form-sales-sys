@@ -16,7 +16,17 @@ export interface UrlEditFormProps {
 
 /**
  * URL編集フォームコンポーネント
- * セキュリティ: HTTPSのURLのみ許可
+ *
+ * 【セキュリティ対策】
+ * - HTTPSのURLのみ許可（HTTPは拒否）
+ * - Zodバリデーションで型安全性を確保
+ * - サーバーエラーの詳細を隠蔽（安全なメッセージのみ表示）
+ *
+ * 【実装詳細】
+ * - React Hook FormとZodを統合して型安全なバリデーション
+ * - mode: 'onBlur'により、ユーザーがフィールドから離れた時にバリデーション
+ * - isSubmittingでローディング状態を自動管理
+ * - noValidate属性でブラウザのデフォルトバリデーションを無効化
  *
  * @example
  * ```tsx
@@ -24,7 +34,9 @@ export interface UrlEditFormProps {
  *   listId={1}
  *   projectId={1}
  *   defaultUrl="https://example.com"
- *   onSubmit={handleSubmit}
+ *   onSubmit={async (data) => {
+ *     await updateListAction(projectId, listId, data)
+ *   }}
  * />
  * ```
  */
@@ -49,10 +61,15 @@ export default function UrlEditForm({
   })
 
   const handleFormSubmit = async (data: UrlEditFormData) => {
+    // サーバーエラーをクリア
+    // なぜ必要か: 前回のエラーメッセージを消すため
     setServerError('')
+
     try {
       await onSubmit(data)
     } catch (error) {
+      // エラーをキャッチして、ユーザーフレンドリーなメッセージを表示
+      // なぜ必要か: サーバーエラーの詳細を隠蔽し、安全なメッセージのみ表示
       setServerError(
         error instanceof Error ? error.message : 'エラーが発生しました'
       )
