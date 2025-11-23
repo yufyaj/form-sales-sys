@@ -22,6 +22,7 @@ from .sales_company_staff import SalesCompanyStaff
 from .user import User
 from .user_role import RolePermission, UserRole
 from .worker import SkillLevel, Worker, WorkerStatus
+from .worker_question import QuestionPriority, QuestionStatus, WorkerQuestion
 
 __all__ = [
     # Base classes
@@ -55,4 +56,8 @@ __all__ = [
     "NoSendSetting",
     # Phase4: Worker Assignment
     "ListItemAssignment",
+    # Phase5: Worker Questions
+    "WorkerQuestion",
+    "QuestionStatus",
+    "QuestionPriority",
 ]
