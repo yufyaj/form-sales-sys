@@ -336,7 +336,21 @@ class CannotSendReasonNotFoundError(ResourceNotFoundException):
     """送信不可理由が見つからない場合の例外"""
 
     def __init__(self, reason_id: int) -> None:
-        super().__init__(f"Cannot send reason with id {reason_id} not found")
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用にはIDを保持するが、メッセージには含めない
+        super().__init__("Cannot send reason not found", {"reason_id": reason_id})
+
+
+class DuplicateCannotSendReasonCodeError(DomainException):
+    """送信不可理由コードが既に登録されている場合の例外"""
+
+    def __init__(self, reason_code: str) -> None:
+        # セキュリティ: 理由コードを公開しない（情報収集を防ぐ）
+        # 内部ログ用には情報を保持するが、メッセージには含めない
+        super().__init__(
+            "この理由コードは既に登録されています",
+            {"reason_code": reason_code},
+        )
 
 
 # ========================================
