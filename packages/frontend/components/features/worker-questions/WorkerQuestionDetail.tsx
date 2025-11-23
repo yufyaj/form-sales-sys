@@ -15,6 +15,7 @@ import {
   QuestionStatusColor,
   QuestionPriorityColor,
 } from "@/types/workerQuestion";
+import { maskWorkerId, formatDateTime } from "@/lib/formatters";
 import { Button } from "@/components/ui/Button";
 import AnswerForm from "./AnswerForm";
 
@@ -29,20 +30,6 @@ export default function WorkerQuestionDetail({
 }: WorkerQuestionDetailProps) {
   const router = useRouter();
   const [showAnswerForm, setShowAnswerForm] = useState(!question.answer);
-
-  /**
-   * 日時フォーマット
-   */
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString("ja-JP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   /**
    * 回答送信成功時のコールバック
@@ -95,12 +82,12 @@ export default function WorkerQuestionDetail({
               <span className="font-medium">質問ID:</span> {question.id}
             </div>
             <div>
-              <span className="font-medium">ワーカーID:</span>{" "}
-              {question.workerId}
+              <span className="font-medium">ワーカー:</span>{" "}
+              {maskWorkerId(question.workerId)}
             </div>
             <div>
               <span className="font-medium">作成日時:</span>{" "}
-              {formatDate(question.createdAt)}
+              {formatDateTime(question.createdAt)}
             </div>
           </div>
         </div>
@@ -172,14 +159,8 @@ export default function WorkerQuestionDetail({
                 <div className="flex gap-4 text-sm text-gray-500">
                   <div>
                     <span className="font-medium">回答日時:</span>{" "}
-                    {formatDate(question.answeredAt)}
+                    {formatDateTime(question.answeredAt)}
                   </div>
-                  {question.answeredByUserId && (
-                    <div>
-                      <span className="font-medium">回答者ID:</span>{" "}
-                      {question.answeredByUserId}
-                    </div>
-                  )}
                 </div>
               )}
             </div>

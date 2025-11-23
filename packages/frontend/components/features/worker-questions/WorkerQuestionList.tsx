@@ -18,6 +18,7 @@ import {
   QuestionPriorityColor,
 } from "@/types/workerQuestion";
 import { fetchWorkerQuestions } from "@/lib/workerQuestionApi";
+import { maskWorkerId, formatDateTime } from "@/lib/formatters";
 import { Button } from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 
@@ -106,19 +107,6 @@ export default function WorkerQuestionList() {
     setCurrentPage(0);
   };
 
-  /**
-   * 日時フォーマット
-   */
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ja-JP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   // ローディング表示
   if (isLoading && questions.length === 0) {
@@ -255,14 +243,14 @@ export default function WorkerQuestionList() {
                       </p>
                       <div className="mt-2 flex items-center text-xs text-gray-500">
                         <span>
-                          ワーカーID: {question.workerId}
+                          ワーカー: {maskWorkerId(question.workerId)}
                         </span>
                         <span className="mx-2">•</span>
-                        <span>{formatDate(question.createdAt)}</span>
+                        <span>{formatDateTime(question.createdAt)}</span>
                         {question.answeredAt && (
                           <>
                             <span className="mx-2">•</span>
-                            <span>回答日時: {formatDate(question.answeredAt)}</span>
+                            <span>回答日時: {formatDateTime(question.answeredAt)}</span>
                           </>
                         )}
                       </div>

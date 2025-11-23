@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { WorkerQuestion } from '@/types/workerQuestion'
 import { fetchWorkerQuestion } from '@/lib/workerQuestionApi'
 import WorkerQuestionDetail from '@/components/features/worker-questions/WorkerQuestionDetail'
@@ -19,7 +19,18 @@ export default function WorkerQuestionDetailPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
-  const questionId = Number(params.questionId)
+
+  // 質問IDの厳格な検証
+  const questionId = useMemo(() => {
+    const id = parseInt(params.questionId as string, 10);
+
+    // 数値変換失敗、または範囲外の値を拒否
+    if (!Number.isInteger(id) || id < 1 || id > Number.MAX_SAFE_INTEGER) {
+      return null;
+    }
+
+    return id;
+  }, [params.questionId]);
 
   const [question, setQuestion] = useState<WorkerQuestion | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -34,7 +45,7 @@ export default function WorkerQuestionDetailPage() {
 
   useEffect(() => {
     // 質問IDの妥当性チェック
-    if (isNaN(questionId) || questionId <= 0) {
+    if (questionId === null) {
       setError('無効な質問IDです')
       setIsLoading(false)
       return
