@@ -8,6 +8,16 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+# 許可されたリスト項目ステータス値
+ALLOWED_LIST_ITEM_STATUSES = {
+    "pending",
+    "contacted",
+    "negotiating",
+    "closed_won",
+    "closed_lost",
+    "on_hold",
+}
+
 # ========================================
 # リクエストスキーマ
 # ========================================
@@ -34,19 +44,9 @@ class ListItemUpdateRequest(BaseModel):
         if v is None:
             return None
 
-        # 許可されたステータス値
-        allowed_statuses = {
-            "pending",
-            "contacted",
-            "negotiating",
-            "closed_won",
-            "closed_lost",
-            "on_hold",
-        }
-
-        if v not in allowed_statuses:
+        if v not in ALLOWED_LIST_ITEM_STATUSES:
             raise ValueError(
-                f"Invalid status. Allowed values: {', '.join(sorted(allowed_statuses))}"
+                f"Invalid status. Allowed values: {', '.join(sorted(ALLOWED_LIST_ITEM_STATUSES))}"
             )
 
         return v
@@ -77,19 +77,9 @@ class ListItemStatusUpdateRequest(BaseModel):
     @classmethod
     def validate_status(cls, v: str) -> str:
         """ステータスの妥当性を検証"""
-        # 許可されたステータス値
-        allowed_statuses = {
-            "pending",
-            "contacted",
-            "negotiating",
-            "closed_won",
-            "closed_lost",
-            "on_hold",
-        }
-
-        if v not in allowed_statuses:
+        if v not in ALLOWED_LIST_ITEM_STATUSES:
             raise ValueError(
-                f"Invalid status. Allowed values: {', '.join(sorted(allowed_statuses))}"
+                f"Invalid status. Allowed values: {', '.join(sorted(ALLOWED_LIST_ITEM_STATUSES))}"
             )
 
         return v

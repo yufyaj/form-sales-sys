@@ -220,7 +220,9 @@ class ListItemNotFoundError(DomainException):
     """リスト項目が見つからない場合の例外"""
 
     def __init__(self, list_item_id: int) -> None:
-        super().__init__(f"List item with id {list_item_id} not found")
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用にはIDを保持するが、メッセージには含めない
+        super().__init__("List item not found", {"list_item_id": list_item_id})
 
 
 class CustomColumnSettingNotFoundError(DomainException):

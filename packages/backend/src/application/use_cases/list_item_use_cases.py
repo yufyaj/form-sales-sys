@@ -102,6 +102,10 @@ class ListItemUseCases:
         if list_item is None:
             raise ListItemNotFoundError(list_item_id)
 
+        # ステータスが変更されていない場合は既存のエンティティを返す
+        if list_item.status == request.status:
+            return list_item
+
         # ステータスを更新
         list_item.status = request.status
 

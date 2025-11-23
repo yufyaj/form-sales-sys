@@ -139,6 +139,7 @@ class TestUpdateListItem:
         assert result.status == "pending"  # 変更なし
         # find_by_idは呼ばれるが、updateは呼ばれない（変更がないため）
         mock_list_item_repository.find_by_id.assert_called_once()
+        mock_list_item_repository.update.assert_not_called()  # 呼ばれないことを明示的に検証
 
 
 class TestUpdateListItemStatus:
@@ -207,3 +208,33 @@ class TestUpdateListItemStatus:
                 requesting_organization_id=requesting_organization_id,
                 request=request,
             )
+
+    @pytest.mark.asyncio
+    async def test_update_status_no_changes(
+        self,
+        list_item_use_cases: ListItemUseCases,
+        mock_list_item_repository: AsyncMock,
+        sample_list_item_entity: ListItemEntity,
+    ) -> None:
+        """ステータスが変更されていない場合でもエンティティを返すこと"""
+        # Arrange
+        requesting_organization_id = 100
+        list_item_id = 1
+        request = ListItemStatusUpdateRequest(status="pending")  # 既存と同じステータス
+
+        # モックの戻り値を設定
+        mock_list_item_repository.find_by_id.return_value = sample_list_item_entity
+
+        # Act
+        result = await list_item_use_cases.update_list_item_status(
+            list_item_id=list_item_id,
+            requesting_organization_id=requesting_organization_id,
+            request=request,
+        )
+
+        # Assert
+        assert result.id == 1
+        assert result.status == "pending"  # 変更なし
+        # find_by_idは呼ばれるが、updateは呼ばれない（ステータスが同じため）
+        mock_list_item_repository.find_by_id.assert_called_once()
+        mock_list_item_repository.update.assert_not_called()  # 呼ばれないことを明示的に検証
