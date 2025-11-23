@@ -134,6 +134,15 @@ export function NoSendReasonFormDisabledExample() {
 export function SimpleNoSendReasonExample() {
   const [selectedReasons, setSelectedReasons] = React.useState<string[]>([])
 
+  /**
+   * IDから実際のラベルを取得する安全な方法
+   * セキュリティ: XSS対策として、未検証のIDを直接表示せず、ラベルを取得
+   */
+  const getReasonLabel = (id: string): string => {
+    const reason = DEFAULT_NO_SEND_REASONS.find((r) => r.id === id)
+    return reason?.label ?? '不明な理由'
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">送信不可理由選択（簡易版）</h2>
@@ -153,7 +162,7 @@ export function SimpleNoSendReasonExample() {
         {selectedReasons.length > 0 && (
           <ul className="mt-2 text-sm text-gray-700">
             {selectedReasons.map((id) => (
-              <li key={id}>• {id}</li>
+              <li key={id}>• {getReasonLabel(id)}</li>
             ))}
           </ul>
         )}

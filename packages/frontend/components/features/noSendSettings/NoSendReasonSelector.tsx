@@ -29,9 +29,17 @@ export default function NoSendReasonSelector({
 }: NoSendReasonSelectorProps) {
   /**
    * 理由の選択/選択解除をトグル
+   * セキュリティ: reasonIdが有効な理由リストに存在するか検証
    */
   const handleToggleReason = (reasonId: string) => {
     if (disabled) return
+
+    // reasonIdが実際のreasonsリストに存在するか検証（CodeGuard: 入力検証）
+    const isValidReasonId = reasons.some((r) => r.id === reasonId)
+    if (!isValidReasonId) {
+      console.error('[Security] Invalid reasonId attempted:', reasonId)
+      return
+    }
 
     if (value.includes(reasonId)) {
       // 選択解除
@@ -61,8 +69,20 @@ export default function NoSendReasonSelector({
   }
 
   // デフォルト理由とカスタム理由に分類
-  const defaultReasons = reasons.filter((r) => r.isDefault)
-  const customReasons = reasons.filter((r) => !r.isDefault)
+  // Prototype Pollution対策: filter()の代わりにreduce()を使用
+  const categorizedReasons = reasons.reduce(
+    (acc, reason) => {
+      if (reason.isDefault) {
+        acc.default.push(reason)
+      } else {
+        acc.custom.push(reason)
+      }
+      return acc
+    },
+    { default: [] as NoSendReason[], custom: [] as NoSendReason[] }
+  )
+  const defaultReasons = categorizedReasons.default
+  const customReasons = categorizedReasons.custom
 
   /**
    * チェックボックス項目をレンダリング
