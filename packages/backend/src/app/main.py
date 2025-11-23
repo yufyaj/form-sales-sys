@@ -15,6 +15,7 @@ from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
 from src.app.api.csv_import import router as csv_import_router
 from src.app.api.list_item_assignments import router as list_item_assignments_router
+from src.app.api.list_items import router as list_items_router
 from src.app.api.list_scripts import router as list_scripts_router
 from src.app.api.lists import router as lists_router
 from src.app.api.ng_list_domains import router as ng_list_domains_router
@@ -142,6 +143,9 @@ app.include_router(workers_router, prefix="/api/v1")  # ワーカー管理は /a
 app.include_router(
     list_item_assignments_router, prefix="/api/v1"
 )  # リスト項目割り当ては /api/v1/lists/{list_id}/assign-workers
+app.include_router(
+    list_items_router, prefix="/api/v1"
+)  # リスト項目管理は /api/v1/list-items
 app.include_router(
     worker_questions_router, prefix="/api/v1"
 )  # ワーカー質問管理は /api/v1/worker-questions
