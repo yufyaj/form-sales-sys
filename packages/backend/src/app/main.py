@@ -11,10 +11,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from src.app.api import auth
+from src.app.api.cannot_send_reasons import router as cannot_send_reasons_router
 from src.app.api.client_contacts import router as client_contacts_router
 from src.app.api.client_organizations import router as client_organizations_router
 from src.app.api.csv_import import router as csv_import_router
 from src.app.api.list_item_assignments import router as list_item_assignments_router
+from src.app.api.list_items import router as list_items_router
 from src.app.api.list_scripts import router as list_scripts_router
 from src.app.api.lists import router as lists_router
 from src.app.api.ng_list_domains import router as ng_list_domains_router
@@ -24,6 +26,8 @@ from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.users import router as users_router
 from src.app.api.worker_questions import router as worker_questions_router
 from src.app.api.workers import router as workers_router
+from src.app.api.work_records import router as work_records_router
+from src.app.api.worker_assignments import router as worker_assignments_router
 from src.app.core.config import get_settings
 from src.app.core.exceptions import domain_exception_handler
 from src.domain.exceptions import DomainException
@@ -138,13 +142,25 @@ app.include_router(csv_import_router, prefix="/api/v1")  # CSVインポートは
 app.include_router(
     no_send_settings_router, prefix="/api/v1"
 )  # 送信禁止設定は /api/v1/no-send-settings
+app.include_router(
+    cannot_send_reasons_router, prefix="/api/v1"
+)  # 送信不可理由管理は /api/v1/cannot-send-reasons
 app.include_router(workers_router, prefix="/api/v1")  # ワーカー管理は /api/v1/workers
 app.include_router(
     list_item_assignments_router, prefix="/api/v1"
 )  # リスト項目割り当ては /api/v1/lists/{list_id}/assign-workers
 app.include_router(
+    list_items_router, prefix="/api/v1"
+)  # リスト項目管理は /api/v1/list-items
+app.include_router(
     worker_questions_router, prefix="/api/v1"
 )  # ワーカー質問管理は /api/v1/worker-questions
+app.include_router(
+    work_records_router, prefix="/api/v1"
+)  # 作業記録は /api/v1/work-records
+app.include_router(
+    worker_assignments_router, prefix="/api/v1"
+)  # ワーカー割り当ては /api/v1/workers/{worker_id}/assignments
 
 
 @app.get("/health", tags=["health"])

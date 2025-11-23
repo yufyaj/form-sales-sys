@@ -54,15 +54,22 @@ export default function WorkerAssignmentPage({
         throw new Error('割り当て情報が見つかりません')
       }
 
-      return createWorkRecord({
-        assignmentId: Number(assignmentId),
-        workerId: Number(assignment.workerId),
-        status: data.status,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        cannotSendReasonId: data.cannotSendReasonId,
+      // 送信済みまたは送信不可のリクエストを作成
+      const baseData = {
+        assignment_id: Number(assignmentId),
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
         notes: data.notes,
-      })
+      }
+
+      if (data.status === 'sent') {
+        return createWorkRecord(baseData)
+      } else {
+        return createWorkRecord({
+          ...baseData,
+          cannot_send_reason_id: data.cannot_send_reason_id!,
+        })
+      }
     },
     onSuccess: () => {
       // キャッシュを無効化

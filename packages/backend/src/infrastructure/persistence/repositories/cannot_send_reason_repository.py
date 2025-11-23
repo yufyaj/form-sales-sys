@@ -163,12 +163,11 @@ class CannotSendReasonRepository(ICannotSendReasonRepository):
         if db_reason is None:
             raise CannotSendReasonNotFoundError(reason.id)
 
-        # 更新前の値を保存（監査ログ用）
-        old_values = {
-            "reason_code": db_reason.reason_code,
-            "reason_name": db_reason.reason_name,
-            "is_active": db_reason.is_active,
-        }
+        # 更新前の値を保存（変更検知用）
+        old_reason_code = db_reason.reason_code
+        old_reason_name = db_reason.reason_name
+        old_is_active = db_reason.is_active
+        old_description = db_reason.description
 
         # エンティティの値でモデルを更新
         db_reason.reason_code = reason.reason_code
@@ -179,17 +178,23 @@ class CannotSendReasonRepository(ICannotSendReasonRepository):
         await self._session.flush()
         await self._session.refresh(db_reason)
 
+        # 変更されたフィールドのみをログに記録（機密情報保護）
+        changed_fields = []
+        if old_reason_code != reason.reason_code:
+            changed_fields.append("reason_code")
+        if old_reason_name != reason.reason_name:
+            changed_fields.append("reason_name")
+        if old_is_active != reason.is_active:
+            changed_fields.append("is_active")
+
         logger.info(
             "Cannot send reason updated successfully",
             extra={
                 "event_type": "cannot_send_reason_updated",
                 "reason_id": reason.id,
-                "old_values": old_values,
-                "new_values": {
-                    "reason_code": reason.reason_code,
-                    "reason_name": reason.reason_name,
-                    "is_active": reason.is_active,
-                },
+                "changed_fields": changed_fields,
+                # descriptionは機密情報を含む可能性があるため、変更の有無のみ記録
+                "description_changed": old_description != reason.description,
             },
         )
 

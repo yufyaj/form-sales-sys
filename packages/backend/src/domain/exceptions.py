@@ -220,7 +220,9 @@ class ListItemNotFoundError(DomainException):
     """リスト項目が見つからない場合の例外"""
 
     def __init__(self, list_item_id: int) -> None:
-        super().__init__(f"List item with id {list_item_id} not found")
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用にはIDを保持するが、メッセージには含めない
+        super().__init__("List item not found", {"list_item_id": list_item_id})
 
 
 class CustomColumnSettingNotFoundError(DomainException):
@@ -336,7 +338,28 @@ class CannotSendReasonNotFoundError(ResourceNotFoundException):
     """送信不可理由が見つからない場合の例外"""
 
     def __init__(self, reason_id: int) -> None:
-        super().__init__(f"Cannot send reason with id {reason_id} not found")
+        # セキュリティ: IDを公開しない（IDOR攻撃の情報収集を防ぐ）
+        # 内部ログ用にはIDを保持するが、メッセージには含めない
+        super().__init__("Cannot send reason not found", {"reason_id": reason_id})
+
+
+class DuplicateCannotSendReasonCodeError(DomainException):
+    """送信不可理由コードが既に登録されている場合の例外"""
+
+    def __init__(self, reason_code: str) -> None:
+        # セキュリティ: 理由コードを公開しない（情報収集を防ぐ）
+        # 内部ログ用には情報を保持するが、メッセージには含めない
+        super().__init__(
+            "この理由コードは既に登録されています",
+            {"reason_code": reason_code},
+        )
+
+
+class SendTimingViolationError(BusinessRuleViolationException):
+    """送信禁止時間帯・曜日・日付に該当する場合の例外"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"送信禁止設定に該当しています: {reason}", {"reason": reason})
 
 
 # ========================================

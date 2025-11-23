@@ -117,13 +117,10 @@ describe('WorkRecordForm', () => {
         expect(onSubmit).toHaveBeenCalled()
       })
 
-      // 最初の引数（フォームデータ）を確認
-      expect(onSubmit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          status: 'sent',
-          notes: 'テスト備考',
-        })
-      )
+      // 最初の引数(フォームデータ)を確認
+      const formData = onSubmit.mock.calls[0][0]
+      expect(formData.status).toBe('sent')
+      expect(formData.notes).toBe('テスト備考')
     })
 
     it('送信不可でフォームを送信できる', async () => {
@@ -152,14 +149,11 @@ describe('WorkRecordForm', () => {
         expect(onSubmit).toHaveBeenCalled()
       })
 
-      // 最初の引数（フォームデータ）を確認
-      expect(onSubmit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          status: 'cannot_send',
-          cannotSendReasonId: 1,
-          notes: 'フォームが見つかりませんでした',
-        })
-      )
+      // 最初の引数(フォームデータ)を確認
+      const formData = onSubmit.mock.calls[0][0]
+      expect(formData.status).toBe('cannot_send')
+      expect(formData.cannot_send_reason_id).toBe(1)
+      expect(formData.notes).toBe('フォームが見つかりませんでした')
     })
 
     it('備考なしでも送信できる', async () => {
@@ -176,12 +170,9 @@ describe('WorkRecordForm', () => {
         expect(onSubmit).toHaveBeenCalled()
       })
 
-      // 最初の引数（フォームデータ）を確認
-      expect(onSubmit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          status: 'sent',
-        })
-      )
+      // 最初の引数(フォームデータ)を確認
+      const formData = onSubmit.mock.calls[0][0]
+      expect(formData.status).toBe('sent')
     })
   })
 

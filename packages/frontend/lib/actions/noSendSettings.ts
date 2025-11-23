@@ -20,7 +20,15 @@ import {
   UpdateNoSendSettingRequest,
 } from '@/types/noSendSetting'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:8000'
+// 環境変数からAPIベースURLを取得（フォールバック値なし - セキュリティ対策）
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+
+if (!API_BASE_URL) {
+  throw new Error(
+    'NEXT_PUBLIC_API_BASE_URL environment variable is not set. ' +
+    'Please set it in your .env.local file for local development or in your deployment environment.'
+  )
+}
 
 /**
  * 認証トークンを取得

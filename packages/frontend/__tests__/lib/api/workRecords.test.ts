@@ -17,16 +17,16 @@ describe('workRecords API', () => {
   describe('listWorkRecords', () => {
     it('パラメータなしで作業記録一覧を取得できる', async () => {
       const mockResponse = {
-        workRecords: [
+        work_records: [
           {
             id: 1,
-            assignmentId: 100,
-            workerId: 1,
+            assignment_id: 100,
+            worker_id: 1,
             status: 'sent',
-            startedAt: '2025-01-01T10:00:00Z',
-            completedAt: '2025-01-01T10:30:00Z',
-            createdAt: '2025-01-01T10:30:00Z',
-            updatedAt: '2025-01-01T10:30:00Z',
+            started_at: '2025-01-01T10:00:00Z',
+            completed_at: '2025-01-01T10:30:00Z',
+            created_at: '2025-01-01T10:30:00Z',
+            updated_at: '2025-01-01T10:30:00Z',
           },
         ],
         total: 1,
@@ -42,7 +42,7 @@ describe('workRecords API', () => {
 
     it('workerId パラメータで作業記録をフィルタできる', async () => {
       const mockResponse = {
-        workRecords: [],
+        work_records: [],
         total: 0,
       }
 
@@ -57,7 +57,7 @@ describe('workRecords API', () => {
 
     it('assignmentId パラメータで作業記録をフィルタできる', async () => {
       const mockResponse = {
-        workRecords: [],
+        work_records: [],
         total: 0,
       }
 
@@ -72,7 +72,7 @@ describe('workRecords API', () => {
 
     it('複数のパラメータを組み合わせて作業記録を取得できる', async () => {
       const mockResponse = {
-        workRecords: [],
+        work_records: [],
         total: 0,
       }
 
@@ -95,19 +95,19 @@ describe('workRecords API', () => {
     it('IDを指定して作業記録詳細を取得できる', async () => {
       const mockWorkRecord = {
         id: 1,
-        assignmentId: 100,
-        workerId: 1,
+        assignment_id: 100,
+        worker_id: 1,
         status: 'sent' as const,
-        startedAt: '2025-01-01T10:00:00Z',
-        completedAt: '2025-01-01T10:30:00Z',
-        formSubmissionResult: {
-          statusCode: 200,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
+        form_submission_result: {
+          status_code: 200,
           message: '送信成功',
-          responseTimeMs: 1500,
+          response_time_ms: 1500,
         },
         notes: '問題なく送信できました',
-        createdAt: '2025-01-01T10:30:00Z',
-        updatedAt: '2025-01-01T10:30:00Z',
+        created_at: '2025-01-01T10:30:00Z',
+        updated_at: '2025-01-01T10:30:00Z',
       }
 
       ;(apiClient.get as jest.Mock).mockResolvedValue(mockWorkRecord)
@@ -130,19 +130,22 @@ describe('workRecords API', () => {
   describe('createWorkRecord', () => {
     it('作業記録を作成できる（送信完了）', async () => {
       const requestData = {
-        assignmentId: 100,
-        workerId: 1,
-        status: 'sent' as const,
-        startedAt: '2025-01-01T10:00:00Z',
-        completedAt: '2025-01-01T10:30:00Z',
+        assignment_id: 100,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
         notes: '正常に送信できました',
       }
 
       const mockResponse = {
         id: 1,
-        ...requestData,
-        createdAt: '2025-01-01T10:30:00Z',
-        updatedAt: '2025-01-01T10:30:00Z',
+        assignment_id: 100,
+        worker_id: 1,
+        status: 'sent' as const,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
+        notes: '正常に送信できました',
+        created_at: '2025-01-01T10:30:00Z',
+        updated_at: '2025-01-01T10:30:00Z',
       }
 
       ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
@@ -158,20 +161,24 @@ describe('workRecords API', () => {
 
     it('作業記録を作成できる（送信不可）', async () => {
       const requestData = {
-        assignmentId: 100,
-        workerId: 1,
-        status: 'cannot_send' as const,
-        startedAt: '2025-01-01T10:00:00Z',
-        completedAt: '2025-01-01T10:15:00Z',
-        cannotSendReasonId: 1,
+        assignment_id: 100,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:15:00Z',
+        cannot_send_reason_id: 1,
         notes: 'フォームが見つかりませんでした',
       }
 
       const mockResponse = {
         id: 2,
-        ...requestData,
-        createdAt: '2025-01-01T10:15:00Z',
-        updatedAt: '2025-01-01T10:15:00Z',
+        assignment_id: 100,
+        worker_id: 1,
+        status: 'cannot_send' as const,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:15:00Z',
+        cannot_send_reason_id: 1,
+        notes: 'フォームが見つかりませんでした',
+        created_at: '2025-01-01T10:15:00Z',
+        updated_at: '2025-01-01T10:15:00Z',
       }
 
       ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
@@ -187,24 +194,32 @@ describe('workRecords API', () => {
 
     it('フォーム送信結果を含む作業記録を作成できる', async () => {
       const requestData = {
-        assignmentId: 100,
-        workerId: 1,
-        status: 'sent' as const,
-        startedAt: '2025-01-01T10:00:00Z',
-        completedAt: '2025-01-01T10:30:00Z',
-        formSubmissionResult: {
-          statusCode: 200,
+        assignment_id: 100,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
+        form_submission_result: {
+          status_code: 200,
           message: '送信成功',
-          responseTimeMs: 2000,
-          screenshotUrl: 'https://example.com/screenshot.png',
+          response_time_ms: 2000,
+          screenshot_url: 'https://example.com/screenshot.png',
         },
       }
 
       const mockResponse = {
         id: 3,
-        ...requestData,
-        createdAt: '2025-01-01T10:30:00Z',
-        updatedAt: '2025-01-01T10:30:00Z',
+        assignment_id: 100,
+        worker_id: 1,
+        status: 'sent' as const,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
+        form_submission_result: {
+          status_code: 200,
+          message: '送信成功',
+          response_time_ms: 2000,
+          screenshot_url: 'https://example.com/screenshot.png',
+        },
+        created_at: '2025-01-01T10:30:00Z',
+        updated_at: '2025-01-01T10:30:00Z',
       }
 
       ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
@@ -222,19 +237,19 @@ describe('workRecords API', () => {
   describe('updateWorkRecord', () => {
     it('作業記録を更新できる', async () => {
       const updateData = {
-        status: 'sent' as const,
-        completedAt: '2025-01-01T11:00:00Z',
         notes: '更新されました',
       }
 
       const mockResponse = {
         id: 1,
-        assignmentId: 100,
-        workerId: 1,
-        ...updateData,
-        startedAt: '2025-01-01T10:00:00Z',
-        createdAt: '2025-01-01T10:30:00Z',
-        updatedAt: '2025-01-01T11:00:00Z',
+        assignment_id: 100,
+        worker_id: 1,
+        status: 'sent' as const,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T11:00:00Z',
+        notes: '更新されました',
+        created_at: '2025-01-01T10:30:00Z',
+        updated_at: '2025-01-01T11:00:00Z',
       }
 
       ;(apiClient.patch as jest.Mock).mockResolvedValue(mockResponse)
@@ -255,14 +270,14 @@ describe('workRecords API', () => {
 
       const mockResponse = {
         id: 1,
-        assignmentId: 100,
-        workerId: 1,
+        assignment_id: 100,
+        worker_id: 1,
         status: 'sent' as const,
-        startedAt: '2025-01-01T10:00:00Z',
-        completedAt: '2025-01-01T10:30:00Z',
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:30:00Z',
         notes: '備考を更新',
-        createdAt: '2025-01-01T10:30:00Z',
-        updatedAt: '2025-01-01T11:00:00Z',
+        created_at: '2025-01-01T10:30:00Z',
+        updated_at: '2025-01-01T11:00:00Z',
       }
 
       ;(apiClient.patch as jest.Mock).mockResolvedValue(mockResponse)
@@ -290,10 +305,9 @@ describe('workRecords API', () => {
       ;(apiClient.post as jest.Mock).mockRejectedValue(error)
 
       const requestData = {
-        assignmentId: 100,
-        workerId: 1,
-        status: 'sent' as const,
-        startedAt: '2025-01-01T10:00:00Z',
+        assignment_id: 100,
+        started_at: '2025-01-01T10:00:00Z',
+        completed_at: '2025-01-01T10:00:00Z',
       }
 
       await expect(createWorkRecord(requestData)).rejects.toThrow(

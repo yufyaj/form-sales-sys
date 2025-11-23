@@ -96,8 +96,8 @@ export function WorkRecordForm({
                 { value: 3, label: '営業お断りと明記されている' },
                 { value: 4, label: 'その他' },
               ]}
-              error={errors.cannotSendReasonId?.message}
-              {...register('cannotSendReasonId', { valueAsNumber: true })}
+              error={errors.cannot_send_reason_id?.message}
+              {...register('cannot_send_reason_id', { valueAsNumber: true })}
             />
           )}
 

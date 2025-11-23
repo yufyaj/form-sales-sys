@@ -5,9 +5,9 @@
 import { get, post, patch } from '@/lib/api-client'
 import type {
   WorkRecord,
-  WorkRecordListResponse,
-  WorkRecordCreateRequest,
-  WorkRecordUpdateRequest,
+  CreateSentWorkRecordRequest,
+  CreateCannotSendWorkRecordRequest,
+  UpdateWorkRecordRequest,
 } from '@/types/workRecord'
 
 /**
@@ -18,6 +18,16 @@ export interface WorkRecordListParams {
   assignmentId?: number
   page?: number
   pageSize?: number
+}
+
+/**
+ * 作業記録一覧レスポンス
+ */
+export interface WorkRecordListResponse {
+  work_records: WorkRecord[]
+  total: number
+  page?: number
+  page_size?: number
 }
 
 /**
@@ -60,7 +70,7 @@ export async function getWorkRecord(workRecordId: number): Promise<WorkRecord> {
  * 作業記録を作成
  */
 export async function createWorkRecord(
-  data: WorkRecordCreateRequest
+  data: CreateSentWorkRecordRequest | CreateCannotSendWorkRecordRequest
 ): Promise<WorkRecord> {
   return post<WorkRecord>('/api/v1/work-records', data)
 }

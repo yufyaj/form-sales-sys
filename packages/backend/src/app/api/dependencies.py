@@ -30,6 +30,7 @@ from src.infrastructure.persistence.repositories.organization_repository import 
 )
 from src.infrastructure.persistence.repositories.role_repository import RoleRepository
 from src.infrastructure.persistence.repositories.user_repository import UserRepository
+from src.infrastructure.persistence.repositories.worker_repository import WorkerRepository
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -145,6 +146,58 @@ async def get_current_active_user(
             detail="User account is inactive",
         )
     return current_user
+
+
+async def get_current_worker_id(
+    current_user: UserEntity = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db),
+) -> int:
+    """
+    現在のユーザーのWorker IDを取得（IDOR対策）
+
+    UserとWorkerの関連を検証し、ログイン中のユーザーに紐づくWorker IDのみを返します。
+    これにより、他のワーカーのデータにアクセスするIDOR脆弱性を防止します。
+
+    Args:
+        current_user: 現在のアクティブユーザー
+        session: DBセッション
+
+    Returns:
+        ログイン中のユーザーに紐づくWorker ID
+
+    Raises:
+        HTTPException: ユーザーがワーカーでない場合（403 Forbidden）
+
+    セキュリティ上の注意:
+        この関数は、APIエンドポイントで worker_id を扱う際に必ず使用してください。
+        クエリパラメータやパスパラメータで受け取った worker_id をそのまま使用すると、
+        IDOR脆弱性が発生します。
+    """
+    worker_repo = WorkerRepository(session)
+
+    # UserIDからWorkerを取得
+    worker = await worker_repo.find_by_user_id(
+        current_user.id,
+        current_user.organization_id,
+    )
+
+    if worker is None:
+        # ユーザーがワーカーでない場合はアクセス拒否
+        logger.warning(
+            "Worker access denied: user is not a worker",
+            extra={
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "organization_id": current_user.organization_id,
+                "event_type": "worker_access_denied",
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a worker",
+        )
+
+    return worker.id
 
 
 class RoleChecker:

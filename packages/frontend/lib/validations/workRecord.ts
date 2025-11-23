@@ -12,7 +12,7 @@ export const workRecordFormSchema = z.object({
     required_error: '作業ステータスを選択してください',
     invalid_type_error: '有効な作業ステータスを選択してください',
   }),
-  cannotSendReasonId: z
+  cannot_send_reason_id: z
     .number({
       required_error: '送信不可理由を選択してください',
       invalid_type_error: '有効な理由を選択してください',
