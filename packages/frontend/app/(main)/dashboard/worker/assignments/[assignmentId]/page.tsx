@@ -93,12 +93,13 @@ export default function WorkerAssignmentPage({
   }
 
   // エラー表示
+  // セキュリティ: 403と404を区別しない統一メッセージで情報漏洩を防止
   if (error || !assignment) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <p className="text-destructive mb-4">
-            割り当て情報の取得に失敗しました。
+            割り当て情報が見つからないか、アクセス権限がありません。
           </p>
           <Button asChild variant="outline">
             <Link href="/dashboard/worker">

@@ -1,4 +1,5 @@
 import { getOrCreateCSRFToken } from './csrf'
+import { env } from './env'
 
 /**
  * APIエラー
@@ -23,8 +24,9 @@ interface ApiRequestOptions extends RequestInit {
 
 /**
  * APIベースURL
+ * 検証済みの環境変数から取得、デフォルトはローカル開発用
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 /**
  * 安全なAPIリクエストを実行

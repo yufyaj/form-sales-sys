@@ -36,10 +36,30 @@ export function ScriptDisplay({ title, content }: ScriptDisplayProps) {
 
   /**
    * クリップボードにスクリプトをコピー
+   * モダンブラウザと古いブラウザの両方に対応
    */
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content)
+      // モダンブラウザ: Clipboard API
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content)
+      } else {
+        // フォールバック: execCommand (deprecated だが互換性高い)
+        const textarea = document.createElement('textarea')
+        textarea.value = content
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        textarea.style.pointerEvents = 'none'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (!successful) {
+          throw new Error('execCommand failed')
+        }
+      }
+
       setIsCopied(true)
 
       // 2秒後にコピー状態をリセット
@@ -48,6 +68,10 @@ export function ScriptDisplay({ title, content }: ScriptDisplayProps) {
       }, 2000)
     } catch (error) {
       console.error('クリップボードへのコピーに失敗しました:', error)
+      // ユーザーにフィードバック
+      alert(
+        'コピーに失敗しました。手動でテキストを選択してコピーしてください。'
+      )
     }
   }
 

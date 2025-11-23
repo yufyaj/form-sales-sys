@@ -128,3 +128,49 @@ export function validateDateRange(startDate: string, endDate: string): boolean {
   // 開始日 <= 終了日の確認
   return startDate <= endDate
 }
+
+/**
+ * プロトタイプ汚染対策: 危険なキーのブロックリスト
+ */
+const BLOCKED_KEYS = ['__proto__', 'constructor', 'prototype']
+
+/**
+ * プロトタイプ汚染攻撃から保護するため、危険なキーをチェック
+ *
+ * @param key - チェックするオブジェクトキー
+ * @returns 安全なキーの場合true
+ */
+export function isSafeKey(key: string): boolean {
+  return !BLOCKED_KEYS.includes(key)
+}
+
+/**
+ * プロトタイプ汚染対策: 安全なオブジェクト作成
+ * Object.create(null)を使用してプロトタイプチェーンを持たないオブジェクトを作成
+ *
+ * @returns プロトタイプを持たない空オブジェクト
+ */
+export function createSafeObject<T extends Record<string, unknown>>(): T {
+  return Object.create(null) as T
+}
+
+/**
+ * オブジェクトのキーをフィルタリングして安全なオブジェクトを作成
+ * プロトタイプ汚染攻撃を防止
+ *
+ * @param obj - フィルタリングするオブジェクト
+ * @returns 危険なキーを除外したオブジェクト
+ */
+export function sanitizeObject<T extends Record<string, unknown>>(
+  obj: T
+): Partial<T> {
+  const safeObj = createSafeObject<Partial<T>>()
+
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key) && isSafeKey(key)) {
+      safeObj[key] = obj[key]
+    }
+  }
+
+  return safeObj
+}
