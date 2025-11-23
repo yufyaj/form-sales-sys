@@ -7,10 +7,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.api.dependencies import get_current_active_user
+from src.app.api.dependencies import get_current_active_user, RoleChecker
 from src.app.core.database import get_db
 from src.application.schemas.cannot_send_reason import (
     CannotSendReasonCreateRequest,
@@ -31,6 +33,9 @@ from src.infrastructure.persistence.repositories.cannot_send_reason_repository i
 )
 
 router = APIRouter(prefix="/cannot-send-reasons", tags=["cannot-send-reasons"])
+
+# レート制限の初期化
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def get_cannot_send_reason_use_cases(
@@ -54,11 +59,13 @@ async def get_cannot_send_reason_use_cases(
     response_model=CannotSendReasonResponse,
     status_code=status.HTTP_201_CREATED,
     summary="送信不可理由を作成",
-    description="新しい送信不可理由を作成します。認証が必要です。",
+    description="新しい送信不可理由を作成します。管理者権限が必要です。",
 )
+@limiter.limit("10/minute")
 async def create_reason(
-    request: CannotSendReasonCreateRequest,
-    current_user: UserEntity = Depends(get_current_active_user),
+    http_request: Request,
+    reason_request: CannotSendReasonCreateRequest,
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
     use_cases: CannotSendReasonUseCases = Depends(get_cannot_send_reason_use_cases),
 ) -> CannotSendReasonResponse:
     """
@@ -69,7 +76,7 @@ async def create_reason(
     - **description**: 詳細説明（任意）
     - **is_active**: 有効/無効フラグ（デフォルト: true）
     """
-    reason = await use_cases.create_reason(request=request)
+    reason = await use_cases.create_reason(request=reason_request)
     return _to_response(reason)
 
 
@@ -134,12 +141,14 @@ async def list_reasons(
     "/{reason_id}",
     response_model=CannotSendReasonResponse,
     summary="送信不可理由を更新",
-    description="送信不可理由を部分的に更新します。認証が必要です。",
+    description="送信不可理由を部分的に更新します。管理者権限が必要です。",
 )
+@limiter.limit("20/minute")
 async def update_reason(
+    http_request: Request,
     reason_id: int,
-    request: CannotSendReasonUpdateRequest,
-    current_user: UserEntity = Depends(get_current_active_user),
+    reason_request: CannotSendReasonUpdateRequest,
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
     use_cases: CannotSendReasonUseCases = Depends(get_cannot_send_reason_use_cases),
 ) -> CannotSendReasonResponse:
     """
@@ -151,7 +160,7 @@ async def update_reason(
     - **description**: 詳細説明（任意）
     - **is_active**: 有効/無効フラグ（任意）
     """
-    reason = await use_cases.update_reason(reason_id=reason_id, request=request)
+    reason = await use_cases.update_reason(reason_id=reason_id, request=reason_request)
     return _to_response(reason)
 
 
@@ -159,11 +168,13 @@ async def update_reason(
     "/{reason_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="送信不可理由を削除",
-    description="送信不可理由を論理削除します。認証が必要です。",
+    description="送信不可理由を論理削除します。管理者権限が必要です。",
 )
+@limiter.limit("10/minute")
 async def delete_reason(
+    http_request: Request,
     reason_id: int,
-    current_user: UserEntity = Depends(get_current_active_user),
+    current_user: UserEntity = Depends(RoleChecker(["admin", "sales_support"])),
     use_cases: CannotSendReasonUseCases = Depends(get_cannot_send_reason_use_cases),
 ) -> None:
     """
