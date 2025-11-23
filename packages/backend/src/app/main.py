@@ -24,6 +24,8 @@ from src.app.api.sales_company_staff import router as sales_company_staff_router
 from src.app.api.users import router as users_router
 from src.app.api.worker_questions import router as worker_questions_router
 from src.app.api.workers import router as workers_router
+from src.app.api.work_records import router as work_records_router
+from src.app.api.worker_assignments import router as worker_assignments_router
 from src.app.core.config import get_settings
 from src.app.core.exceptions import domain_exception_handler
 from src.domain.exceptions import DomainException
@@ -145,6 +147,12 @@ app.include_router(
 app.include_router(
     worker_questions_router, prefix="/api/v1"
 )  # ワーカー質問管理は /api/v1/worker-questions
+app.include_router(
+    work_records_router, prefix="/api/v1"
+)  # 作業記録は /api/v1/work-records
+app.include_router(
+    worker_assignments_router, prefix="/api/v1"
+)  # ワーカー割り当ては /api/v1/workers/{worker_id}/assignments
 
 
 @app.get("/health", tags=["health"])

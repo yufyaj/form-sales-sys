@@ -339,6 +339,13 @@ class CannotSendReasonNotFoundError(ResourceNotFoundException):
         super().__init__(f"Cannot send reason with id {reason_id} not found")
 
 
+class SendTimingViolationError(BusinessRuleViolationException):
+    """送信禁止時間帯・曜日・日付に該当する場合の例外"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"送信禁止設定に該当しています: {reason}", {"reason": reason})
+
+
 # ========================================
 # Phase5: ワーカー質問例外
 # ========================================
