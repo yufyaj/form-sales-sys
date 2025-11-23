@@ -95,10 +95,11 @@ describe('QuestionForm', () => {
       const user = userEvent.setup()
       render(<QuestionForm {...defaultProps} />)
 
-      const longTitle = 'あ'.repeat(501)
+      const longTitle = 'a'.repeat(501)
       const titleInput = screen.getByLabelText('質問タイトル')
 
-      await user.type(titleInput, longTitle)
+      await user.click(titleInput)
+      await user.paste(longTitle)
       await user.tab()
 
       await waitFor(() => {
@@ -112,10 +113,11 @@ describe('QuestionForm', () => {
       const user = userEvent.setup()
       render(<QuestionForm {...defaultProps} />)
 
-      const longContent = 'あ'.repeat(5001)
+      const longContent = 'a'.repeat(5001)
       const contentTextarea = screen.getByLabelText(/質問内容/i)
 
-      await user.type(contentTextarea, longContent)
+      await user.click(contentTextarea)
+      await user.paste(longContent)
       await user.tab()
 
       await waitFor(() => {
@@ -315,9 +317,6 @@ describe('QuestionForm', () => {
 
       render(<QuestionForm {...defaultProps} />)
 
-      const prioritySelect = screen.getByLabelText('優先度')
-      await user.selectOptions(prioritySelect, 'high')
-
       await user.type(
         screen.getByLabelText('質問タイトル'),
         'テスト質問'
@@ -326,6 +325,9 @@ describe('QuestionForm', () => {
         screen.getByLabelText(/質問内容/i),
         'テスト質問の内容です'
       )
+
+      const prioritySelect = screen.getByLabelText('優先度')
+      await user.selectOptions(prioritySelect, 'high')
 
       const submitButton = screen.getByRole('button', { name: '質問を投稿' })
       await user.click(submitButton)

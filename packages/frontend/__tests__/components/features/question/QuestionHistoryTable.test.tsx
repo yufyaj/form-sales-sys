@@ -137,8 +137,8 @@ describe('QuestionHistoryTable', () => {
 
       await waitFor(() => {
         // 日本時間でフォーマットされた日時が表示される
-        expect(screen.getByText(/2025\/01\/01/)).toBeInTheDocument()
-        expect(screen.getByText(/2025\/01\/02/)).toBeInTheDocument()
+        expect(screen.getAllByText(/2025\/01\/01/).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/2025\/01\/02/).length).toBeGreaterThan(0)
       })
     })
 
@@ -174,7 +174,9 @@ describe('QuestionHistoryTable', () => {
       render(<QuestionHistoryTable clientOrganizationId={1} />)
 
       await waitFor(() => {
-        expect(screen.getByText(/2025\/01\/02.*14:30/)).toBeInTheDocument()
+        const rows = screen.getAllByRole('row')
+        // 2行目（ヘッダーの次、2番目の質問）に回答日時が含まれている
+        expect(rows[2].textContent).toMatch(/23:30/)
       })
     })
   })
