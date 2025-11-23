@@ -36,7 +36,7 @@ export interface CannotSendReason {
 }
 
 /**
- * 送信不可理由マスターデータ（よく使われる理由）
+ * 送信不可理由マスターデータ(よく使われる理由)
  */
 export const COMMON_CANNOT_SEND_REASONS = [
   { code: 'FORM_NOT_FOUND', name: 'フォームが見つからない' },
@@ -46,6 +46,18 @@ export const COMMON_CANNOT_SEND_REASONS = [
   { code: 'SUBMISSION_FAILED', name: '送信処理失敗' },
   { code: 'OTHER', name: 'その他' },
 ] as const
+
+/**
+ * フォーム送信結果
+ */
+export interface FormSubmissionResult {
+  status_code?: number
+  message?: string
+  response_time_ms?: number
+  screenshot_url?: string
+  error_message?: string
+  retry_count?: number
+}
 
 /**
  * 作業記録
@@ -67,7 +79,7 @@ export interface WorkRecord {
 }
 
 /**
- * 作業記録作成リクエスト（送信済み）
+ * 作業記録作成リクエスト(送信済み)
  */
 export interface CreateSentWorkRecordRequest {
   assignment_id: number
@@ -78,7 +90,7 @@ export interface CreateSentWorkRecordRequest {
 }
 
 /**
- * 作業記録作成リクエスト（送信不可）
+ * 作業記録作成リクエスト(送信不可)
  */
 export interface CreateCannotSendWorkRecordRequest {
   assignment_id: number
@@ -101,8 +113,8 @@ export interface UpdateWorkRecordRequest {
 export interface ProhibitedTimeCheckResult {
   /** 現在禁止時間帯かどうか */
   isProhibited: boolean
-  /** 禁止理由（複数の設定に該当する場合は配列） */
+  /** 禁止理由(複数の設定に該当する場合は配列) */
   reasons: string[]
-  /** 次回許可時刻（禁止時間帯の場合） */
+  /** 次回許可時刻(禁止時間帯の場合) */
   nextAllowedTime?: Date
 }

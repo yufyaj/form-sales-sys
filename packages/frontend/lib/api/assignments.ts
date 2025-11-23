@@ -6,6 +6,7 @@ import { get, post, del } from '@/lib/api-client'
 import type {
   Assignment,
   AssignmentListResponse,
+  AssignmentDetail,
   AssignmentPriority,
 } from '@/types/assignment'
 
@@ -73,6 +74,17 @@ export async function getAssignment(
 ): Promise<Assignment> {
   return get<Assignment>(
     `/api/v1/projects/${encodeURIComponent(projectId)}/lists/${encodeURIComponent(listId)}/assignments/${encodeURIComponent(assignmentId)}`
+  )
+}
+
+/**
+ * ワーカー用の割り当て詳細を取得（企業情報とスクリプト付き）
+ */
+export async function getAssignmentDetail(
+  assignmentId: string
+): Promise<AssignmentDetail> {
+  return get<AssignmentDetail>(
+    `/api/v1/worker/assignments/${encodeURIComponent(assignmentId)}`
   )
 }
 
